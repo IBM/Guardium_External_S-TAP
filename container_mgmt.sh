@@ -179,7 +179,8 @@ do_usage() {
 	println "\t[--db-port <port>]           - database <port> to which cluster sends traffic"
 	println "\t                               optional, can be set from collector after creation.  example \"1526\""
 	println "\t[--db-type <string>]         - specify DB type for traffic that is being proxied"
-	println "\t                               optional, can be set from collector after creation.  must be \"oracle\" or \"mssql\""
+	println "\t                               optional, can be set from collector after creation."
+	println "\t                               must be one of \"oracle\", \"mssql\", \"mongodb\", or \"db2\""
 	println "\t[--proxy-num-workers <#>]    - number of worker threads for the guardium external s-tap to use"
 	println "\t                               optional, can be set from collector after creation.  example \"5\""
 	println "\t[--proxy-protocol <#>]       - proxy protocol is enabled for the DB traffic (0: no, 1: protocol version 1)"
@@ -636,17 +637,42 @@ mark_error() {
 }
 
 print_valid_db_types() {
-	echo "Valid DB types are \"oracle\" and \"mssql\""
+	echo "Valid DB types are \"oracle\", \"mssql\", \"mongodb\", \"db2\""
 }
 
 valid_db_type() {
 	VALID_TYPE=1
-	if [ "$1" = "oracle" ]; then
+	if [ "$1" = "oracle" ] \
+		|| [ "$1" = "mssql" ] \
+		|| [ "$1" = "mongodb" ] \
+		|| [ "$1" = "db2" ] \
+	; then
 		VALID_TYPE=0
 	fi
-	if [ "$1" = "mssql" ]; then
-		VALID_TYPE=0
-	fi
+		# Currently unsupported marks
+#		|| [ "$1" = "sybase" ] \
+#		|| [ "$1" = "mysql" ] \
+#		|| [ "$1" = "memsql" ] \
+#		|| [ "$1" = "mariadb" ] \
+#		|| [ "$1" = "pgsql" ] \
+#		|| [ "$1" = "greenplumdb" ] \
+#		|| [ "$1" = "verticadb" ] \
+#		|| [ "$1" = "infx" ] \
+#		|| [ "$1" = "teradata" ] \
+#		|| [ "$1" = "netezza" ] \
+#		|| [ "$1" = "hadoop" ] \
+#		|| [ "$1" = "cassandra" ] \
+#		|| [ "$1" = "asterdb" ] \
+#		|| [ "$1" = "hana" ] \
+#		|| [ "$1" = "couch" ] \
+#		|| [ "$1" = "hive" ] \
+#		|| [ "$1" = "accumolo" ] \
+#		|| [ "$1" = "impala" ] \
+#		|| [ "$1" = "hue" ] \
+#		|| [ "$1" = "webhdfs" ] \
+#		|| [ "$1" = "solr" ] \
+#		|| [ "$1" = "couchbase" ] \
+#		|| [ "$1" = "neo4j" ] \
 	return $VALID_TYPE
 }
 
