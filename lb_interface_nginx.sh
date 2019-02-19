@@ -56,7 +56,9 @@ EOF
 		if echo $LINE | grep -qv "STATE="; then
 			LB_TARGET=`echo $LINE | cut -d',' -f1`
 			TARGET_PORT=`echo $LINE | cut -d',' -f2`
-			LB_PORT=`echo $LINE | cut -d',' -f4`
+			if [ "$LB_PORT" = "" ]; then
+				LB_PORT=`echo $LINE | cut -d',' -f4`
+			fi
 			cat >> $LB_CONF << EOF
         server $LB_TARGET:$TARGET_PORT;
 EOF
