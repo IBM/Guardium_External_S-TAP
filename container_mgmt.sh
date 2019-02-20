@@ -239,7 +239,11 @@ STAP_CONFIG_PROXY_NOTIFY_ON_INVALID_CERTIFICATE_FMT="-e STAP_CONFIG_PROXY_NOTIFY
 # These can be filled in by parameters
 NUMBER_OF_CONTAINERS=""
 DEBUG=0
-EXTRA_CAPABILITIES="--shm-size 500M"
+CONTAINER_SHMEM_MEMORY_REQ=500
+CONTAINER_STAP_MEMORY_REQ=200
+CONTAINER_EXTRA_MEMORY_REQ=300
+CONTAINER_RECOMMENDED_MEMORY_FREE=`expr ${CONTAINER_SHMEM_MEMORY_REQ} + ${CONTAINER_STAP_MEMORY_REQ} + ${CONTAINER_EXTRA_MEMORY_REQ}`
+EXTRA_CAPABILITIES="--shm-size ${CONTAINER_SHMEM_MEMORY_REQ}M"
 
 LB_SCRIPT=""
 
@@ -1399,6 +1403,42 @@ set_config_vars() {
 	STAP_CONFIG_SQLGUARD_0_SQLGUARD_IP="${STAP_CONFIG_SQLGUARD_0_SQLGUARD_IP_FMT}${COLLECTOR}"
 }
 
+target_has_enough_memory() {
+	TARGET_HOST=$1
+	TARGET_USER=$2
+	TARGET_MEM=$3
+
+	MEMINFO=`ssh ${TARGET_USER}@${TARGET_HOST} cat /proc/meminfo`
+	MEMFREE=`echo "${MEMINFO}" | grep "^MemFree" | awk '{ print $2 }'`
+	SWAPFREE=`echo "${MEMINFO}" | grep "^SwapFree" | awk '{ print $2 }'`
+
+	if [ "${MEMFREE}" = "" ] || [ "${SWAPFREE}" = "" ]; then
+		echo "$MEMINFO"
+		echo "MEMFREE: $MEMFREE"
+		echo "SWAPFREE: $SWAPFREE"
+		return 1
+	fi
+
+	if [ "`echo ${MEMFREE} | sed 's/[0-9]//g'`" != "" ]; then
+		echo ${MEMFREE} | sed 's/[0-9]//g'
+		return 1
+	fi
+	if [ "`echo ${SWAPFREE} | sed 's/[0-9]//g'`" != "" ]; then
+		echo ${SWAPFREE} | sed 's/[0-9]//g'
+		return 1
+	fi
+
+	MEMFREE=`expr $MEMFREE / 1024`
+	SWAPFREE=`expr $SWAPFREE / 1024`
+	TARGET_MEMORY_FREE=`expr $MEMFREE + $SWAPFREE`
+
+	if [ $TARGET_MEMORY_FREE -ge $TARGET_MEM ]; then
+		return 0;
+	fi
+
+	return 1
+}
+
 if [ "$ACTION" = "C" ]; then
 	echo "Creating new cluster, description will be stored in $STATE_FILE"
 	if [ -f $STATE_FILE ]; then
@@ -1514,8 +1554,13 @@ if [ "$ACTION" = "C" ]; then
 			fi
 			EXPORTED_PORT=`find_available_port_in_range $INSTANCE_HOST $SVC_HOST_USER $SVC_PORT_RANGE`
 			if [ $? -eq 1 ]; then
-				CONTAINER_HASH=`ssh ${SVC_HOST_USER}@${INSTANCE_HOST} docker run --hostname $INTERNAL_HOSTNAME --name $NAME -d $CONTAINER_CMD $STAP_CONFIG_SQLGUARD_0_SQLGUARD_IP -p=:${EXPORTED_PORT}:${LISTEN_PORT}/tcp $SVC_IMAGE`
-				CONTAINER_OK=$?
+				if target_has_enough_memory ${INSTANCE_HOST} ${SVC_HOST_USER} ${CONTAINER_RECOMMENDED_MEMORY_FREE}; then
+					CONTAINER_HASH=`ssh ${SVC_HOST_USER}@${INSTANCE_HOST} docker run --hostname $INTERNAL_HOSTNAME --name $NAME -d $CONTAINER_CMD $STAP_CONFIG_SQLGUARD_0_SQLGUARD_IP -p=:${EXPORTED_PORT}:${LISTEN_PORT}/tcp $SVC_IMAGE`
+					CONTAINER_OK=$?
+				else
+					echo "Error: Insufficient memory on target host ${INSTANCE_HOST}.  Free: ${TARGET_MEMORY_FREE} Recommended: ${CONTAINER_RECOMMENDED_FREE}"
+					CONTAINER_OK=1
+				fi
 			else
 				echo "Error: Unable to find free port in range ${SVC_PORT_RANGE} on host ${INSTANCE_HOST}"
 				CONTAINER_OK=1
