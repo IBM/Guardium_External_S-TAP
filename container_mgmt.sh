@@ -13,6 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+###################################
+# Pre-requisite checking for script
+
 TRANSLATE_SPECIAL_CHARS=1
 ECHO_DASH_N_WORKS=0
 PRINTF_IS_PROVIDED=0
@@ -58,6 +61,22 @@ println() {
 		echo "$MSG"
 	fi
 }
+
+UTILITY_MISSING=0
+check_for_utility() {
+	UTILITY=$1
+	if ! type $UTILITY > /dev/null 2>&1; then
+		echo "Missing required utility for proper script function: $UTILITY"
+		UTILITY_MISSING=1
+	fi
+}
+
+check_for_utility expr
+
+if [ $UTILITY_MISSING -ne 0 ]; then
+	exit 1
+fi
+###################################
 
 if [ "$DEVELOPER" != "" ]; then
 	if [ ! -f $DEVELOPER ]; then
@@ -140,62 +159,66 @@ do_usage() {
 	println "usage: `basename $0` [options]"
 	println "options"
 	developer_usage
-	println "\t[--lb-script <file>]         - script to use to pull in functions for integrating with a load balancer"
-	println "\t                               if not provided, load balancer will need to be configured separately"
+	println "\t[--lb-script <file>]                    - script to use to pull in functions for integrating with a load balancer"
+	println "\t                                          if not provided, load balancer will need to be configured separately"
 	println
-	println "\t[--svc-host <host/ip>]       - host(s) on which to create service container(s) (comma delimited)"
-	println "\t                               optional, default is \"$SVC_HOST\""
-	println "\t[--svc-host-user <username>] - username to use for creating service container(s) on host(s)"
-	println "\t                               optional, default is the current user \"$SVC_HOST_USER\""
-	println "\t[--svc-port-range <X-Y>]     - exported port for the service container will be between X and Y (inclusive)"
-	println "\t                               optional, default (\"0\") is to use the values at /proc/sys/net/ipv4/ip_local_port_range"
-	println "\t                               example \"32768-61000\""
-	println "\t[--svc-image <image>]        - hash/name of guardium external s-tap image"
-	println "\t                               required, example \"ibmcorp/guardium_external_s-tap:v10_6_0\""
-	println "\t[--repo-user <username>]     - username to log in to the repository from which the service image is pulled"
-	println "\t                               optional, example \"foo\""
-	println "\t[--repo-pass <password>]     - password for username when loging in to the repository"
-	println "\t                               optional, example \"bar\""
-	println "\t[--svc-container-num <num>]  - number of service containers to create"
-	println "\t                               optional, default is \"1\""
+	println "\t[--svc-host <host/ip>]                  - host(s) on which to create service container(s) (comma delimited)"
+	println "\t                                          optional, default is \"$SVC_HOST\""
+	println "\t[--svc-host-user <username>]            - username to use for creating service container(s) on host(s)"
+	println "\t                                          optional, default is the current user \"$SVC_HOST_USER\""
+	println "\t[--svc-port-range <X-Y>]                - exported port for the service container will be between X and Y (inclusive)"
+	println "\t                                          optional, default (\"0\") is to use the values at /proc/sys/net/ipv4/ip_local_port_range"
+	println "\t                                          example \"32768-61000\""
+	println "\t[--svc-image <image>]                   - hash/name of guardium external s-tap image"
+	println "\t                                          required, example \"ibmcorp/guardium_external_s-tap:v10_6_0\""
+	println "\t[--repo-user <username>]                - username to log in to the repository from which the service image is pulled"
+	println "\t                                          optional, example \"foo\""
+	println "\t[--repo-pass <password>]                - password for username when loging in to the repository"
+	println "\t                                          optional, example \"bar\""
+	println "\t[--svc-container-num <num>]             - number of service containers to create"
+	println "\t                                          optional, default is \"1\""
 	println
-	println "\t[--ni]                       - run this script non-interactively"
-	println "\t[--c]                        - create a cluster"
-	println "\t[--p]                        - do not create a cluster, just print service container env vars (output saved in state file)"
-	println "\t[--r]                        - remove interception (requires load-balancer integration script)"
-	println "\t[--e]                        - enable interception (requires load-balancer integration script)"
-	println "\t[--u]                        - upgrade an existing cluster"
-	println "\t[--d]                        - delete an existing cluster"
-	println "\t[--z]                        - clean up zombie instances"
+	println "\t[--ni]                                  - run this script non-interactively"
+	println "\t[--c]                                   - create a cluster"
+	println "\t[--p]                                   - do not create a cluster, just print service container env vars (output saved in state file)"
+	println "\t[--r]                                   - remove interception (requires load-balancer integration script)"
+	println "\t[--e]                                   - enable interception (requires load-balancer integration script)"
+	println "\t[--u]                                   - upgrade an existing cluster"
+	println "\t[--d]                                   - delete an existing cluster"
+	println "\t[--z]                                   - clean up zombie instances"
 	println
-	println "\t[--uuid <UUID>]              - specify <UUID> for the guardium external s-tap cluster"
-	println "\t                               optional, default is a random UUID like \"$RANDOM_UUID\""
-	println "\t[--proxy-secret <string>]    - use <string> as shared secret to retrieve keys from collector for guardium external s-tap"
-	println "\t                               required, comes from CLI on collector"
-	println "\t[--sqlguard-ip <host/ip>]    - specify collector <host/ip> for guardium external s-tap to relay decrypted traffic"
-	println "\t                               required, example \"10.0.0.2\""
-	println "\t[--db-host <host/ip>]        - database <host/ip> to which cluster sends traffic"
-	println "\t                               optional, can be set from collector after creation.  example \"10.0.0.3\""
-	println "\t[--db-port <port>]           - database <port> to which cluster sends traffic"
-	println "\t                               optional, can be set from collector after creation.  example \"1526\""
-	println "\t[--db-type <string>]         - specify DB type for traffic that is being proxied"
-	println "\t                               optional, can be set from collector after creation."
-	println "\t                               must be one of \"oracle\", \"mssql\", \"mongodb\", or \"db2\""
-	println "\t[--proxy-num-workers <#>]    - number of worker threads for the guardium external s-tap to use"
-	println "\t                               optional, can be set from collector after creation.  example \"5\""
-	println "\t[--proxy-protocol <#>]       - proxy protocol is enabled for the DB traffic (0: no, 1: protocol version 1)"
-	println "\t                               optional, can be set from collector after creation.  default is \"0\""
-	println "\t[--invalid-cert-disconnect]  - disconnect if DB server certificate cannot be verified"
-	println "\t                               optional, can be set from collector after creation."
-	println "\t[--invalid-cert-notify]      - log a warning if DB server certificate cannot be verified"
-	println "\t                               optional, can be set from collector after creation."
+	println "\t[--uuid <UUID>]                         - specify <UUID> for the guardium external s-tap cluster"
+	println "\t                                          optional, default is a random UUID like \"$RANDOM_UUID\""
+	println "\t[--proxy-secret <string>]               - use <string> as shared secret to retrieve key from collector for guardium external s-tap"
+	println "\t                                          required if traffic is encrypted, optional if not, comes from CLI on collector"
+	println "\t[--sqlguard-ip <host/ip>]               - specify collector list <host/ip> (comma delimited) for guardium external s-tap to relay decrypted traffic (primary is first)"
+	println "\t                                          required, example \"10.0.0.2\""
+	println "\t[--participate-in-load-balancing <num>] - STAP load balancing parameter"
+	println "\t                                          optional, default is 0 -  0: failover/no lb, 1: split, 2: redundancy, 3: not allowed, 4: threaded"
+	println "\t[--sqlguard-cert-cn <cn>]               - CN to match when verifying collector certificates"
+	println "\t                                          requires a derived container image with a CA populated at ${GUARDIUM_CA_PATH}"
+	println "\t[--db-host <host/ip>]                   - database <host/ip> to which cluster sends traffic"
+	println "\t                                          optional, can be set from collector after creation.  example \"10.0.0.3\""
+	println "\t[--db-port <port>]                      - database <port> to which cluster sends traffic"
+	println "\t                                          optional, can be set from collector after creation.  example \"1526\""
+	println "\t[--db-type <string>]                    - specify DB type for traffic that is being proxied"
+	println "\t                                          optional, can be set from collector after creation."
+	println "\t                                          must be one of \"oracle\", \"mssql\", \"sybase\", \"mongodb\", \"db2\", \"mysql\", \"memsql\", \"mariadb\", \"pgsql\", \"greenplumdb\", or \"verticadb\""
+	println "\t[--proxy-num-workers <#>]               - number of worker threads for the guardium external s-tap to use"
+	println "\t                                          optional, can be set from collector after creation.  example \"5\""
+	println "\t[--proxy-protocol <#>]                  - proxy protocol is enabled for the DB traffic (0: no, 1: protocol version 1)"
+	println "\t                                          optional, can be set from collector after creation.  default is \"0\""
+	println "\t[--invalid-cert-disconnect]             - disconnect if DB server certificate cannot be verified"
+	println "\t                                          optional, can be set from collector after creation."
+	println "\t[--invalid-cert-notify]                 - log a warning if DB server certificate cannot be verified"
+	println "\t                                          optional, can be set from collector after creation."
 	println
-	println "\t[--kill-after <#>]           - when stopping a container, if container cannot shutdown within # seconds, forcefully remove it"
-	println "\t                               optional, example \"30\", when not specified, script will wait 30s but container will not be"
-	println "\t                               forefully removed if graceful termination does not occur."
+	println "\t[--kill-after <#>]                      - when stopping a container, if container cannot shutdown within # seconds, forcefully remove it"
+	println "\t                                          optional, example \"30\", when not specified, script will wait 30s but container will not be"
+	println "\t                                          forefully removed if graceful termination does not occur."
 	println
-	println "\t[--state-file <filename>]    - name of the file in which the state is recorded"
-	println "\t                               required, example \"./cluster_state\""
+	println "\t[--state-file <filename>]               - name of the file in which the state is recorded"
+	println "\t                                          required, example \"./cluster_state\""
 }
 
 # This script will need to save a config file for future use
@@ -230,7 +253,12 @@ STAP_CONFIG_PROXY_LISTEN_PORT_FMT="-e STAP_CONFIG_PROXY_LISTEN_PORT="
 STAP_CONFIG_PROXY_DEBUG_FMT="-e STAP_CONFIG_PROXY_DEBUG="
 STAP_CONFIG_PROXY_SECRET_FMT="-e STAP_CONFIG_PROXY_SECRET="
 STAP_CONFIG_DB_0_DB_TYPE_FMT="-e STAP_CONFIG_DB_0_DB_TYPE="
-STAP_CONFIG_SQLGUARD_0_SQLGUARD_IP_FMT="-e STAP_CONFIG_SQLGUARD_0_SQLGUARD_IP="
+STAP_CONFIG_SQLGUARD_FMT="-e STAP_CONFIG_SQLGUARD_"
+STAP_CONFIG_SQLGUARD_IP_FMT="_SQLGUARD_IP="
+SQLGUARD_PARAMS=
+STAP_CONFIG_PARTICIPATE_IN_LOAD_BALANCING_FMT="-e STAP_CONFIG_PARTICIPATE_IN_LOAD_BALANCING="
+STAP_CONFIG_GUARDIUM_CA_PATH_FMT="-e STAP_CONFIG_GUARDIUM_CA_PATH="
+STAP_CONFIG_SQLGUARD_CERT_CN_FMT="-e STAP_CONFIG_SQLGUARD_CERT_CN="
 STAP_CONFIG_PROXY_NUM_WORKERS_FMT="-e STAP_CONFIG_PROXY_NUM_WORKERS="
 STAP_CONFIG_PROXY_PROXY_PROTOCOL_FMT="-e STAP_CONFIG_PROXY_PROXY_PROTOCOL="
 STAP_CONFIG_PROXY_DISCONNECT_ON_INVALID_CERTIFICATE_FMT="-e STAP_CONFIG_PROXY_DISCONNECT_ON_INVALID_CERTIFICATE="
@@ -244,6 +272,7 @@ CONTAINER_STAP_MEMORY_REQ=200
 CONTAINER_EXTRA_MEMORY_REQ=300
 CONTAINER_RECOMMENDED_MEMORY_FREE=`expr ${CONTAINER_SHMEM_MEMORY_REQ} + ${CONTAINER_STAP_MEMORY_REQ} + ${CONTAINER_EXTRA_MEMORY_REQ}`
 EXTRA_CAPABILITIES="--shm-size ${CONTAINER_SHMEM_MEMORY_REQ}M"
+
 
 LB_SCRIPT=""
 
@@ -261,6 +290,8 @@ DB_PORT=""
 DB_TYPE=""
 TOKEN=""
 COLLECTOR=""
+GUARDIUM_CA_PATH="/etc/guardium/guardium_ca.crt"
+PARTICIPATE_IN_LOAD_BALANCING=0
 NUM_WORKERS=""
 PROXY_PROTOCOL="0"
 INVALID_CERT_DISCO="N"
@@ -383,6 +414,14 @@ parse_cmd_line_args()
 					;;
 				--sqlguard-ip)
 					COLLECTOR=$2
+					shift
+					;;
+				--participate-in-load-balancing)
+					PARTICIPATE_IN_LOAD_BALANCING=$2
+					shift
+					;;
+				--sqlguard-cert-cn)
+					SQLGUARD_CERT_CN=$2
 					shift
 					;;
 				--svc-image)
@@ -641,26 +680,26 @@ mark_error() {
 }
 
 print_valid_db_types() {
-	echo "Valid DB types are \"oracle\", \"mssql\", \"mongodb\", \"db2\""
+	echo "Valid DB types are \"oracle\", \"mssql\", \"sybase\", \"mongodb\", \"db2\", \"mysql\", \"memsql\", \"mariadb\", \"pgsql\", \"greenplumdb\", \"verticadb\""
 }
 
 valid_db_type() {
 	VALID_TYPE=1
 	if [ "$1" = "oracle" ] \
 		|| [ "$1" = "mssql" ] \
+		|| [ "$1" = "sybase" ] \
 		|| [ "$1" = "mongodb" ] \
 		|| [ "$1" = "db2" ] \
+		|| [ "$1" = "mysql" ] \
+		|| [ "$1" = "memsql" ] \
+		|| [ "$1" = "mariadb" ] \
+		|| [ "$1" = "pgsql" ] \
+		|| [ "$1" = "greenplumdb" ] \
+		|| [ "$1" = "verticadb" ] \
 	; then
 		VALID_TYPE=0
 	fi
 		# Currently unsupported marks
-#		|| [ "$1" = "sybase" ] \
-#		|| [ "$1" = "mysql" ] \
-#		|| [ "$1" = "memsql" ] \
-#		|| [ "$1" = "mariadb" ] \
-#		|| [ "$1" = "pgsql" ] \
-#		|| [ "$1" = "greenplumdb" ] \
-#		|| [ "$1" = "verticadb" ] \
 #		|| [ "$1" = "infx" ] \
 #		|| [ "$1" = "teradata" ] \
 #		|| [ "$1" = "netezza" ] \
@@ -757,10 +796,7 @@ if [ $NI -ne 0 ] && ( [ "$ACTION" = "C" ] || [ "$ACTION" = "P" ] ); then
 			mark_error 1
 		fi
 
-		if [ "$TOKEN" = "" ]; then
-			echo "--proxy-secret must be specified"
-			mark_error 1
-		else
+		if [ "$TOKEN" != "" ]; then
 			validate_string "Invalid value for --proxy-secret" "$TOKEN" 0
 			mark_error $?
 		fi
@@ -781,6 +817,11 @@ if [ $NI -ne 0 ] && ( [ "$ACTION" = "C" ] || [ "$ACTION" = "P" ] ); then
 			mark_error 1
 		else
 			validate_string "Invalid value for --svc-image" "$SVC_IMAGE" 0
+			mark_error $?
+		fi
+
+		if [ "$PARTICIPATE_IN_LOAD_BALANCING" != "0" ]; then
+			validate_character "Invalid value for --participate-in-load-balancing" "$PARTICIPATE_IN_LOAD_BALANCING" "0124"
 			mark_error $?
 		fi
 	else
@@ -1065,8 +1106,8 @@ if [ $NI -eq 0 ]; then
 			fi
 			get_resp \
 				"TOKEN" \
-				"Enter the secret token which will be used to retrieve the private keys and certificates from the Guardium Collector: " \
-				"string"
+				"If traffic is encrypted, enter the secret token which will be used to retrieve the key and certificate from the Guardium Collector: " \
+				"string_empty_ok"
 			print_ni_param "--proxy-secret" "$TOKEN"
 			if [ "$GSERV_IP" = "" ]; then
 				if ! developer_have_additional_containers; then
@@ -1075,6 +1116,17 @@ if [ $NI -eq 0 ]; then
 						"Enter the hostname or IP of the Guardium Collector: " \
 						"string"
 					print_ni_param "--sqlguard-ip" "$COLLECTOR"
+					get_resp \
+						"PARTICIPATE_IN_LOAD_BALANCING" \
+						"Participate in load balancing or failover? 0: failover/no lb, 1) split, 2) redundancy, 3) not allowed, 4) threaded: " \
+						"character" \
+						"0124"
+					print_ni_param "--participate-in-load-balancing" "$PARTICIPATE_IN_LOAD_BALANCING"
+					get_resp \
+						"SQLGUARD_CERT_CN" \
+						"Enter the CN to match when verifying the Guardium Collector's Certificate (blank to disable verification): "\
+						"string_empty_ok"
+					print_ni_param "--sqlguard-cert-cn" "$SQLGUARD_CERT_CN"
 				else
 					developer_note_additional_containers
 				fi
@@ -1325,7 +1377,18 @@ get_config_from_container() {
 		DEBUG=`echo "$INSTANCE_ENV" | grep STAP_CONFIG_PROXY_DEBUG | sed "s/.*=\(.*\)/\1/"`
 		NUM_WORKERS=`echo "$INSTANCE_ENV" | grep STAP_CONFIG_PROXY_NUM_WORKERS | sed "s/.*=\(.*\)/\1/"`
 		TOKEN=`echo "$INSTANCE_ENV" | grep STAP_CONFIG_PROXY_SECRET | sed "s/.*=\(.*\)/\1/"`
-		COLLECTOR=`echo "$INSTANCE_ENV" | grep STAP_CONFIG_SQLGUARD_0_SQLGUARD_IP | sed "s/.*=\(.*\)/\1/"`
+		COLLECTOR0=`echo "$INSTANCE_ENV" | grep STAP_CONFIG_SQLGUARD_0_SQLGUARD_IP | sed "s/.*=\(.*\)/\1/"`
+		COLLECTOR1=`echo "$INSTANCE_ENV" | grep STAP_CONFIG_SQLGUARD_1_SQLGUARD_IP | sed "s/.*=\(.*\)/\1/"`
+		COLLECTOR2=`echo "$INSTANCE_ENV" | grep STAP_CONFIG_SQLGUARD_2_SQLGUARD_IP | sed "s/.*=\(.*\)/\1/"`
+		COLLECTOR3=`echo "$INSTANCE_ENV" | grep STAP_CONFIG_SQLGUARD_3_SQLGUARD_IP | sed "s/.*=\(.*\)/\1/"`
+		COLLECTOR4=`echo "$INSTANCE_ENV" | grep STAP_CONFIG_SQLGUARD_4_SQLGUARD_IP | sed "s/.*=\(.*\)/\1/"`
+		COLLECTOR5=`echo "$INSTANCE_ENV" | grep STAP_CONFIG_SQLGUARD_5_SQLGUARD_IP | sed "s/.*=\(.*\)/\1/"`
+		COLLECTOR6=`echo "$INSTANCE_ENV" | grep STAP_CONFIG_SQLGUARD_6_SQLGUARD_IP | sed "s/.*=\(.*\)/\1/"`
+		COLLECTOR7=`echo "$INSTANCE_ENV" | grep STAP_CONFIG_SQLGUARD_7_SQLGUARD_IP | sed "s/.*=\(.*\)/\1/"`
+		COLLECTOR8=`echo "$INSTANCE_ENV" | grep STAP_CONFIG_SQLGUARD_8_SQLGUARD_IP | sed "s/.*=\(.*\)/\1/"`
+		COLLECTOR9=`echo "$INSTANCE_ENV" | grep STAP_CONFIG_SQLGUARD_9_SQLGUARD_IP | sed "s/.*=\(.*\)/\1/"`
+		SQLGUARD_CERT_CN=`echo "$INSTANCE_ENV" | grep STAP_CONFIG_SQLGUARD_CERT_CN | sed "s/.*=\(.*\)/\1/"`
+		PARTICIPATE_IN_LOAD_BALANCING=`echo "$INSTANCE_ENV" | grep STAP_CONFIG_PARTICIPATE_IN_LOAD_BALANCING | sed "s/.*=\(.*\)/\1/"`
 
 		STAP_CONFIG_TAP_TAP_IP="${STAP_CONFIG_TAP_TAP_IP_FMT}NULL"
 		STAP_CONFIG_PROXY_GROUP_MEMBER_COUNT="${STAP_CONFIG_PROXY_GROUP_MEMBER_COUNT_FMT}${NUMBER_OF_CONTAINERS}"
@@ -1346,8 +1409,44 @@ get_config_from_container() {
 		STAP_CONFIG_PROXY_DISCONNECT_ON_INVALID_CERTIFICATE="${STAP_CONFIG_PROXY_DISCONNECT_ON_INVALID_CERTIFICATE_FMT}${INVALID_CERT_DISCO}"
 		STAP_CONFIG_PROXY_NOTIFY_ON_INVALID_CERTIFICATE="${STAP_CONFIG_PROXY_NOTIFY_ON_INVALID_CERTIFICATE_FMT}${INVALID_CERT_NOTIFY}"
 		STAP_CONFIG_PROXY_SECRET="${STAP_CONFIG_PROXY_SECRET_FMT}${TOKEN}"
-		STAP_CONFIG_SQLGUARD_0_SQLGUARD_IP="${STAP_CONFIG_SQLGUARD_0_SQLGUARD_IP_FMT}${COLLECTOR}"
-
+		SQLGUARD_PARAMS=
+		if [ "$COLLECTOR0" != "" ]; then
+			SQLGUARD_PARAMS="${SQLGUARD_PARAMS}${STAP_CONFIG_SQLGUARD_FMT}0${STAP_CONFIG_SQLGUARD_IP_FMT}${COLLECTOR0} "
+		fi
+		if [ "$COLLECTOR1" != "" ]; then
+			SQLGUARD_PARAMS="${SQLGUARD_PARAMS}${STAP_CONFIG_SQLGUARD_FMT}1${STAP_CONFIG_SQLGUARD_IP_FMT}${COLLECTOR1} "
+		fi
+		if [ "$COLLECTOR2" != "" ]; then
+			SQLGUARD_PARAMS="${SQLGUARD_PARAMS}${STAP_CONFIG_SQLGUARD_FMT}2${STAP_CONFIG_SQLGUARD_IP_FMT}${COLLECTOR2} "
+		fi
+		if [ "$COLLECTOR3" != "" ]; then
+			SQLGUARD_PARAMS="${SQLGUARD_PARAMS}${STAP_CONFIG_SQLGUARD_FMT}3${STAP_CONFIG_SQLGUARD_IP_FMT}${COLLECTOR3} "
+		fi
+		if [ "$COLLECTOR4" != "" ]; then
+			SQLGUARD_PARAMS="${SQLGUARD_PARAMS}${STAP_CONFIG_SQLGUARD_FMT}4${STAP_CONFIG_SQLGUARD_IP_FMT}${COLLECTOR4} "
+		fi
+		if [ "$COLLECTOR5" != "" ]; then
+			SQLGUARD_PARAMS="${SQLGUARD_PARAMS}${STAP_CONFIG_SQLGUARD_FMT}5${STAP_CONFIG_SQLGUARD_IP_FMT}${COLLECTOR5} "
+		fi
+		if [ "$COLLECTOR6" != "" ]; then
+			SQLGUARD_PARAMS="${SQLGUARD_PARAMS}${STAP_CONFIG_SQLGUARD_FMT}6${STAP_CONFIG_SQLGUARD_IP_FMT}${COLLECTOR6} "
+		fi
+		if [ "$COLLECTOR7" != "" ]; then
+			SQLGUARD_PARAMS="${SQLGUARD_PARAMS}${STAP_CONFIG_SQLGUARD_FMT}7${STAP_CONFIG_SQLGUARD_IP_FMT}${COLLECTOR7} "
+		fi
+		if [ "$COLLECTOR8" != "" ]; then
+			SQLGUARD_PARAMS="${SQLGUARD_PARAMS}${STAP_CONFIG_SQLGUARD_FMT}8${STAP_CONFIG_SQLGUARD_IP_FMT}${COLLECTOR8} "
+		fi
+		if [ "$COLLECTOR9" != "" ]; then
+			SQLGUARD_PARAMS="${SQLGUARD_PARAMS}${STAP_CONFIG_SQLGUARD_FMT}9${STAP_CONFIG_SQLGUARD_IP_FMT}${COLLECTOR9} "
+		fi
+		STAP_CONFIG_GUARDIUM_CA_PATH=""
+		STAP_CONFIG_SQLGUARD_CERT_CN=""
+		if [ "${SQLGUARD_CERT_CN}" != "" ]; then
+			STAP_CONFIG_SQLGUARD_CERT_CN="${STAP_CONFIG_SQLGUARD_CERT_CN_FMT}${SQLGUARD_CERT_CN}"
+			STAP_CONFIG_GUARDIUM_CA_PATH="${STAP_CONFIG_GUARDIUM_CA_PATH_FMT}${GUARDIUM_CA_PATH}"
+		fi
+		STAP_CONFIG_PARTICIPATE_IN_LOAD_BALANCING="${STAP_CONFIG_PARTICIPATE_IN_LOAD_BALANCING_FMT}${PARTICIPATE_IN_LOAD_BALANCING}"
 		CONTAINER_CMD="$PRIVILEGED \
 			$REQUIRED_CAPABILITIES \
 			$EXTRA_CAPABILITIES \
@@ -1363,7 +1462,11 @@ get_config_from_container() {
 			$STAP_CONFIG_PROXY_LISTEN_PORT \
 			$STAP_CONFIG_PROXY_DEBUG \
 			$STAP_CONFIG_PROXY_SECRET \
-			$STAP_CONFIG_DB_0_DB_TYPE"
+			$STAP_CONFIG_DB_0_DB_TYPE \
+			$STAP_CONFIG_PARTICIPATE_IN_LOAD_BALANCING \
+			$STAP_CONFIG_SQLGUARD_CERT_CN \
+			$STAP_CONFIG_GUARDIUM_CA_PATH"
+
 		return 0
 	fi
 	return 1
@@ -1400,7 +1503,19 @@ set_config_vars() {
 	fi
 
 	STAP_CONFIG_PROXY_SECRET="${STAP_CONFIG_PROXY_SECRET_FMT}${TOKEN}"
-	STAP_CONFIG_SQLGUARD_0_SQLGUARD_IP="${STAP_CONFIG_SQLGUARD_0_SQLGUARD_IP_FMT}${COLLECTOR}"
+	i=0
+	SQLGUARD_PARAMS=
+	for C in `echo $COLLECTOR | sed 's/,/ /g'`; do
+		SQLGUARD_PARAMS="${SQLGUARD_PARAMS}${STAP_CONFIG_SQLGUARD_FMT}${i}${STAP_CONFIG_SQLGUARD_IP_FMT}${C} "
+		i=`expr $i + 1`
+	done
+	STAP_CONFIG_GUARDIUM_CA_PATH=""
+	STAP_CONFIG_SQLGUARD_CERT_CN=""
+	if [ "$SQLGUARD_CERT_CN" != "" ]; then
+		STAP_CONFIG_GUARDIUM_CA_PATH="${STAP_CONFIG_GUARDIUM_CA_PATH_FMT}${GUARDIUM_CA_PATH}"
+		STAP_CONFIG_SQLGUARD_CERT_CN="${STAP_CONFIG_SQLGUARD_CERT_CN_FMT}${SQLGUARD_CERT_CN}"
+	fi
+	STAP_CONFIG_PARTICIPATE_IN_LOAD_BALANCING="${STAP_CONFIG_PARTICIPATE_IN_LOAD_BALANCING_FMT}${PARTICIPATE_IN_LOAD_BALANCING}"
 }
 
 target_has_enough_memory() {
@@ -1413,18 +1528,13 @@ target_has_enough_memory() {
 	SWAPFREE=`echo "${MEMINFO}" | grep "^SwapFree" | awk '{ print $2 }'`
 
 	if [ "${MEMFREE}" = "" ] || [ "${SWAPFREE}" = "" ]; then
-		echo "$MEMINFO"
-		echo "MEMFREE: $MEMFREE"
-		echo "SWAPFREE: $SWAPFREE"
 		return 1
 	fi
 
 	if [ "`echo ${MEMFREE} | sed 's/[0-9]//g'`" != "" ]; then
-		echo ${MEMFREE} | sed 's/[0-9]//g'
 		return 1
 	fi
 	if [ "`echo ${SWAPFREE} | sed 's/[0-9]//g'`" != "" ]; then
-		echo ${SWAPFREE} | sed 's/[0-9]//g'
 		return 1
 	fi
 
@@ -1524,7 +1634,10 @@ if [ "$ACTION" = "C" ]; then
 			$STAP_CONFIG_PROXY_LISTEN_PORT \
 			$STAP_CONFIG_PROXY_DEBUG \
 			$STAP_CONFIG_PROXY_SECRET \
-			$STAP_CONFIG_DB_0_DB_TYPE"
+			$STAP_CONFIG_DB_0_DB_TYPE \
+			$STAP_CONFIG_PARTICIPATE_IN_LOAD_BALANCING \
+			$STAP_CONFIG_GUARDIUM_CA_PATH \
+			$STAP_CONFIG_SQLGUARD_CERT_CN"
 	else
 		developer_cluster_set_command
 	fi
@@ -1541,24 +1654,31 @@ if [ "$ACTION" = "C" ]; then
 	SERVICE_CONTAINER_MSGS=""
 	for INSTANCE_HOST in `echo $SVC_HOSTS | cut -d',' -f1-$NUMBER_OF_CONTAINERS | sed 's/,/ /g'`; do
 		if ! is_developer_cluster; then
-			NAME="gext${INSTANCE}-$UUID"
-			INTERNAL_HOSTNAME="`echo ${INSTANCE_HOST} | sed 's/\..*//' `-$NAME"
+			MAX_HOSTNAME_LEN=63
+			NAME="`echo gext${INSTANCE}-$UUID | cut -c -$MAX_HOSTNAME_LEN`"
+			NAME_LEN=`echo $NAME | wc -c`
+			PREFIX_LEN=`expr $MAX_HOSTNAME_LEN - $NAME_LEN - 1`
+			if [ $PREFIX_LEN -gt 0 ]; then
+				INTERNAL_HOSTNAME="`echo ${INSTANCE_HOST} | sed 's/\..*//' | cut -c -$PREFIX_LEN`-$NAME"
+			else
+				INTERNAL_HOSTNAME="$NAME"
+			fi
 			println "Creating service container $NAME on $HOST"
+			# println "Internal hostname will be $INTERNAL_HOSTNAME"
 			# If we have a fake collector (GSERV) then it'll run locally on some containers.  If
 			# that is the case, the firewall dictates that we much use the container IP and not the
 			# external IP of the system
 			if [ "$GSERV_IP" != "" ] && [ "$COLLECTOR" = "$HOST" ]; then
-				STAP_CONFIG_SQLGUARD_0_SQLGUARD_IP="${STAP_CONFIG_SQLGUARD_0_SQLGUARD_IP_FMT}${GSERV_IP}"
-			else
-				STAP_CONFIG_SQLGUARD_0_SQLGUARD_IP="${STAP_CONFIG_SQLGUARD_0_SQLGUARD_IP_FMT}${COLLECTOR}"
+				STAP_CONFIG_SQLGUARD_0_SQLGUARD_IP="${STAP_CONFIG_SQLGUARD_FMT}0${STAP_CONFIG_SQLGUARD_IP_FMT}${GSERV_IP}"
+				SQLGUARD_PARAMS=$STAP_CONFIG_SQLGUARD_0_SQLGUARD_IP
 			fi
 			EXPORTED_PORT=`find_available_port_in_range $INSTANCE_HOST $SVC_HOST_USER $SVC_PORT_RANGE`
 			if [ $? -eq 1 ]; then
 				if target_has_enough_memory ${INSTANCE_HOST} ${SVC_HOST_USER} ${CONTAINER_RECOMMENDED_MEMORY_FREE}; then
-					CONTAINER_HASH=`ssh ${SVC_HOST_USER}@${INSTANCE_HOST} docker run --hostname $INTERNAL_HOSTNAME --name $NAME -d $CONTAINER_CMD $STAP_CONFIG_SQLGUARD_0_SQLGUARD_IP -p=:${EXPORTED_PORT}:${LISTEN_PORT}/tcp $SVC_IMAGE`
+					CONTAINER_HASH=`ssh ${SVC_HOST_USER}@${INSTANCE_HOST} docker run --hostname $INTERNAL_HOSTNAME --name $NAME -d $CONTAINER_CMD $SQLGUARD_PARAMS -p=:${EXPORTED_PORT}:${LISTEN_PORT}/tcp $SVC_IMAGE`
 					CONTAINER_OK=$?
 				else
-					echo "Error: Insufficient memory on target host ${INSTANCE_HOST}.  Free: ${TARGET_MEMORY_FREE} Recommended: ${CONTAINER_RECOMMENDED_FREE}"
+					echo "Error: Insufficient memory on target host ${INSTANCE_HOST}.  Free: ${TARGET_MEMORY_FREE} Recommended: ${CONTAINER_RECOMMENDED_MEMORY_FREE}"
 					CONTAINER_OK=1
 				fi
 			else
@@ -1652,7 +1772,10 @@ elif [ "$ACTION" = "P" ]; then
 			$STAP_CONFIG_PROXY_DEBUG \
 			$STAP_CONFIG_PROXY_SECRET \
 			$STAP_CONFIG_DB_0_DB_TYPE \
-			$STAP_CONFIG_SQLGUARD_0_SQLGUARD_IP"
+			$SQLGUARD_PARAMS \
+			$STAP_CONFIG_PARTICIPATE_IN_LOAD_BALANCING \
+			$STAP_CONFIG_GUARDIUM_CA_PATH \
+			$STAP_CONFIG_SQLGUARD_CERT_CN"
 	else
 		developer_cluster_set_command
 	fi
@@ -1808,6 +1931,7 @@ elif [ "$ACTION" = "U" ]; then
 			exit 1
 		fi
 
+		CA_FILE=
 		get_config_from_container $INSTANCE_HOST $INSTANCE_NAME
 		if [ $? -eq 0 ]; then
 			break
@@ -1891,7 +2015,7 @@ elif [ "$ACTION" = "U" ]; then
 		EXPORTED_PORT=`find_available_port_in_range $INSTANCE_HOST $SVC_HOST_USER $SVC_PORT_RANGE`
 		if [ $? -eq 1 ]; then
 			# Start replacement container
-			CONTAINER_HASH=`ssh ${SVC_HOST_USER}@${INSTANCE_HOST} docker run --hostname $INTERNAL_HOSTNAME --name $INSTANCE_NAME -d $CONTAINER_CMD $STAP_CONFIG_SQLGUARD_0_SQLGUARD_IP -p=:${EXPORTED_PORT}:${LISTEN_PORT}/tcp $SVC_IMAGE`
+			CONTAINER_HASH=`ssh ${SVC_HOST_USER}@${INSTANCE_HOST} docker run --hostname $INTERNAL_HOSTNAME --name $INSTANCE_NAME -d $CONTAINER_CMD $SQLGUARD_PARAMS -p=:${EXPORTED_PORT}:${LISTEN_PORT}/tcp $SVC_IMAGE`
 			CONTAINER_OK=$?
 			if [ $CONTAINER_OK -eq 0 ]; then
 				ssh ${SVC_HOST_USER}@${INSTANCE_HOST} docker exec ${INSTANCE_NAME}-upgrading-$$ gpctl shutdown
@@ -1983,10 +2107,11 @@ elif [ "$ACTION" = "R" ]; then
 		INSTANCE_NAME="`echo $STATE_LINE | cut -d',' -f5`"
 		INSTANCE_HOST="`echo $STATE_LINE | cut -d',' -f1`"
 		if [ "$INSTANCE_HOST" = "" ] || [ "$INSTANCE_NAME" = "" ]; then
-			echo "Unable to process state file for upgrade"
+			echo "Unable to process state file for removing interception"
 			exit 1
 		fi
 
+		CA_FILE=
 		get_config_from_container $INSTANCE_HOST $INSTANCE_NAME
 		if [ $? -eq 0 ]; then
 			break
