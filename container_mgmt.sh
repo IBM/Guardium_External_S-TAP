@@ -1865,14 +1865,14 @@ elif [ "$ACTION" = "Z" ]; then
 		if [ $NOT_ZOMBIE_INSTANCE -eq 0 ]; then
 			HASH=`ssh ${SVC_HOST_USER}@${INSTANCE_HOST} "docker ps -qf name=$NAME" < /dev/null`
 			if [ "$HASH" != "" ]; then
-				echo "Removing container $HASH ($NAME) from host $HOST"
+				echo "Removing container $HASH ($NAME) from host $INSTANCE_HOST"
 				SHUTTING_DOWN=`ssh ${SVC_HOST_USER}@${INSTANCE_HOST} docker exec ${NAME} ls /etc/gp/.gp.SHUTTING_DOWN 2> /dev/null`
 				SHUT_DOWN=`ssh ${SVC_HOST_USER}@${INSTANCE_HOST} docker exec ${NAME} ls /etc/gp/.gp.SHUTDOWN 2> /dev/null`
 				if [ "${SHUTTING_DOWN}" = "" ] && [ "${SHUT_DOWN}" = "" ]; then
 					# Don't call it twice
 					ssh ${SVC_HOST_USER}@${INSTANCE_HOST} docker exec ${NAME} gpctl shutdown
 				fi
-				graceful_terminate $HOST $NAME ""
+				graceful_terminate $INSTANCE_HOST $NAME ""
 			else
 				echo "Unable to check for containers on ${INSTANCE_HOST}"
 				do_usage
