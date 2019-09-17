@@ -22,6 +22,10 @@ LB_CONTAINER_NAME="external_stap_lb"
 # DB service on the same host since by default the LB uses the DB service port
 # and the same port cannot be opened twice
 LB_PORT=
+# Define this to override the listen IP.  Useful when deploying multiple LB
+# services on the same physical host when multiple network interfaces are
+# available.
+LB_BIND_IP="0.0.0.0"
 # Define these to automatically bypass External S-TAP and route directly to
 # the DB service in the event that no External S-TAPs are able to accept
 # connections
@@ -172,7 +176,7 @@ lb_apply_config() {
 		if [ "$LB_CONTAINER_HASH" = "" ]; then
 			if [ "$LB_PORT" != "" ]; then
 				ssh ${LB_USER}@${LB_HOST} docker pull nginx:latest
-				LB_CONTAINER_HASH=`ssh ${LB_USER}@${LB_HOST} docker run --name $LB_CONTAINER_NAME -p $LB_PORT:$LB_PORT -d nginx`
+				LB_CONTAINER_HASH=`ssh ${LB_USER}@${LB_HOST} docker run --name $LB_CONTAINER_NAME -p $LB_BIND_IP:$LB_PORT:$LB_PORT -d nginx`
 				ssh ${LB_USER}@${LB_HOST} docker exec $LB_CONTAINER_HASH apt-get update
 				ssh ${LB_USER}@${LB_HOST} docker exec $LB_CONTAINER_HASH apt-get install -y net-tools
 			else
