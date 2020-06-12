@@ -189,8 +189,22 @@ do_usage() {
 	println
 	println "\t[--uuid <UUID>]                         - specify <UUID> for the guardium external s-tap cluster"
 	println "\t                                          optional, default is a random UUID like \"$RANDOM_UUID\""
-	println "\t[--proxy-secret <string>]               - use <string> as shared secret to retrieve key from collector for guardium external s-tap"
-	println "\t                                          required if traffic is encrypted, optional if not, comes from CLI on collector"
+	println
+	println "\tWhen intercepting TLS traffic, a certificate/key pair is required for External"
+	println "\tS-TAP.  This information is retrieved from the collector in one of two ways..."
+	println
+	println "\t\tUsing a secret token to retrieve a certificate/key from the collector"
+	println "\t\t[--proxy-secret <string>]               - use <string> as shared secret to retrieve key from collector, comes from CLI on collector"
+	println
+	println "\t\tGenerating a CSR in the container to be signed by the collector"
+	println "\t\t[--proxy-csr-name         <string>]     - Name field of CSR's CN (required if using this method)"
+	println "\t\t[--proxy-csr-country      <string>]     - Country field of CSR's CN (optional)"
+	println "\t\t[--proxy-csr-province     <string>]     - Province field of CSR's CN (optional)"
+	println "\t\t[--proxy-csr-city         <string>]     - City field of CSR's CN (optional)"
+	println "\t\t[--proxy-csr-organization <string>]     - Organization field of CSR's CN (optional)"
+	println "\t\t[--proxy-csr-keylength       <num>]     - Private key length, default $DEFAULT_CSR_KEYLENGTH (optional)"
+	println "\t\t[--proxy-secret           <string>]     - use <string> as shared secret to authorize signing the CSR"
+	println
 	println "\t[--sqlguard-ip <host/ip>]               - specify collector list <host/ip> (comma delimited) for guardium external s-tap to relay decrypted traffic (primary is first)"
 	println "\t                                          required, example \"10.0.0.2\""
 	println "\t[--participate-in-load-balancing <num>] - STAP load balancing parameter"
@@ -203,7 +217,7 @@ do_usage() {
 	println "\t                                          optional, can be set from collector after creation.  example \"1526\""
 	println "\t[--db-type <string>]                    - specify DB type for traffic that is being proxied"
 	println "\t                                          optional, can be set from collector after creation."
-	println "\t                                          must be one of \"oracle\", \"mssql\", \"sybase\", \"mongodb\", \"db2\", \"mysql\", \"memsql\", \"mariadb\", \"pgsql\", \"greenplumdb\", or \"verticadb\""
+	println "\t                                          must be one of \"oracle\", \"mssql\", \"sybase\", \"mongodb\", \"db2\", \"mysql\", \"memsql\", \"mariadb\", \"pgsql\", \"greenplumdb\", \"verticadb\", \"redis\", \"dynamodb\", \"el_search\", or \"amazons3\""
 	println "\t[--proxy-num-workers <#>]               - number of worker threads for the guardium external s-tap to use"
 	println "\t                                          optional, can be set from collector after creation.  example \"5\""
 	println "\t[--proxy-protocol <#>]                  - proxy protocol is enabled for the DB traffic (0: no, 1: protocol version 1)"
@@ -212,6 +226,7 @@ do_usage() {
 	println "\t                                          optional, can be set from collector after creation."
 	println "\t[--invalid-cert-notify]                 - log a warning if DB server certificate cannot be verified"
 	println "\t                                          optional, can be set from collector after creation."
+	println "\t[--override-server-ip <ip>              - optional, override server IP with that specified"
 	println
 	println "\t[--kill-after <#>]                      - when stopping a container, if container cannot shutdown within # seconds, forcefully remove it"
 	println "\t                                          optional, example \"30\", when not specified, script will wait 30s but container will not be"
@@ -219,6 +234,10 @@ do_usage() {
 	println
 	println "\t[--state-file <filename>]               - name of the file in which the state is recorded"
 	println "\t                                          required, example \"./cluster_state\""
+	println "\t[--envvar <env-setting>]                - extra environment variable setting"
+#	println "\t[--mount <location>:<mountpoint>]       - mount source:destination"
+#	println "\t[--volume <volume:/mountpoint:options>] - Docker volume mount"
+	println "\t[--persistent <volume>]                 - persistent storage source"
 }
 
 # This script will need to save a config file for future use
@@ -233,7 +252,11 @@ HASHES=""
 ACTION=""
 
 # Defaults
-REQUIRED_CAPABILITIES="--cap-add=NET_ADMIN"
+# We used to require NET_ADMIN to set iptables rules, but now we rely on
+# the host system not exposing ports to restrict container access since
+# most cloud services warn about NET_ADMIN privilege
+#REQUIRED_CAPABILITIES="--cap-add=NET_ADMIN"
+REQUIRED_CAPABILITIES=""
 LISTEN_PORT=8888
 
 RANDOM_UUID=""
@@ -245,13 +268,24 @@ SUGGESTED_CORE_PATTERN="/tmp/core.%t.%e.%p"
 
 # These need to be filled in
 STAP_CONFIG_TAP_TAP_IP_FMT="-e STAP_CONFIG_TAP_TAP_IP="
+STAP_CONFIG_TAP_PRIVATE_TAP_IP_FMT="-e STAP_CONFIG_TAP_PRIVATE_TAP_IP="
+STAP_CONFIG_TAP_FORCE_SERVER_IP_FMT="-e STAP_CONFIG_TAP_FORCE_SERVER_IP="
 STAP_CONFIG_PROXY_GROUP_MEMBER_COUNT_FMT="-e STAP_CONFIG_PROXY_GROUP_MEMBER_COUNT="
 STAP_CONFIG_PROXY_GROUP_UUID_FMT="-e STAP_CONFIG_PROXY_GROUP_UUID="
 STAP_CONFIG_PROXY_DB_HOST_FMT="-e STAP_CONFIG_PROXY_DB_HOST="
 STAP_CONFIG_DB_0_REAL_DB_PORT_FMT="-e STAP_CONFIG_DB_0_REAL_DB_PORT="
 STAP_CONFIG_PROXY_LISTEN_PORT_FMT="-e STAP_CONFIG_PROXY_LISTEN_PORT="
 STAP_CONFIG_PROXY_DEBUG_FMT="-e STAP_CONFIG_PROXY_DEBUG="
+
 STAP_CONFIG_PROXY_SECRET_FMT="-e STAP_CONFIG_PROXY_SECRET="
+
+STAP_CONFIG_PROXY_CSR_NAME_FMT="-e STAP_CONFIG_PROXY_CSR_NAME="
+STAP_CONFIG_PROXY_CSR_COUNTRY_FMT="-e STAP_CONFIG_PROXY_CSR_COUNTRY="
+STAP_CONFIG_PROXY_CSR_PROVINCE_FMT="-e STAP_CONFIG_PROXY_CSR_PROVINCE="
+STAP_CONFIG_PROXY_CSR_CITY_FMT="-e STAP_CONFIG_PROXY_CSR_CITY="
+STAP_CONFIG_PROXY_CSR_ORGANIZATION_FMT="-e STAP_CONFIG_PROXY_CSR_ORGANIZATION="
+STAP_CONFIG_PROXY_CSR_KEYLENGTH_FMT="-e STAP_CONFIG_PROXY_CSR_KEYLENGTH="
+
 STAP_CONFIG_DB_0_DB_TYPE_FMT="-e STAP_CONFIG_DB_0_DB_TYPE="
 STAP_CONFIG_SQLGUARD_FMT="-e STAP_CONFIG_SQLGUARD_"
 STAP_CONFIG_SQLGUARD_IP_FMT="_SQLGUARD_IP="
@@ -265,6 +299,9 @@ STAP_CONFIG_PROXY_DISCONNECT_ON_INVALID_CERTIFICATE_FMT="-e STAP_CONFIG_PROXY_DI
 STAP_CONFIG_PROXY_NOTIFY_ON_INVALID_CERTIFICATE_FMT="-e STAP_CONFIG_PROXY_NOTIFY_ON_INVALID_CERTIFICATE="
 
 # These can be filled in by parameters
+TAP_IP="NULL"
+PRIVATE_TAP_IP="NULL"
+FORCE_SERVER_IP=0
 NUMBER_OF_CONTAINERS=""
 DEBUG=0
 CONTAINER_SHMEM_MEMORY_REQ=500
@@ -288,7 +325,17 @@ UUID=""
 DB_HOST=""
 DB_PORT=""
 DB_TYPE=""
+
 TOKEN=""
+
+CSR_NAME=""
+CSR_COUNTRY=""
+CSR_PROVINCE=""
+CSR_CITY=""
+CSR_ORGANIZATION=""
+DEFAULT_CSR_KEYLENGTH=2048
+CSR_KEYLENGTH=$DEFAULT_CSR_KEYLENGTH
+
 COLLECTOR=""
 GUARDIUM_CA_PATH="/etc/guardium/guardium_ca.crt"
 PARTICIPATE_IN_LOAD_BALANCING=0
@@ -300,6 +347,9 @@ INVALID_CERT_NOTIFY="N"
 KILL_AFTER=0
 
 STATE_FILE=
+
+ENVVARS=
+MOUNTS=
 
 NI=0
 
@@ -394,6 +444,30 @@ parse_cmd_line_args()
 					TOKEN=$2
 					shift
 					;;
+				--proxy-csr-name)
+					CSR_NAME=$2
+					shift
+					;;
+				--proxy-csr-country)
+					CSR_COUNTRY=$2
+					shift
+					;;
+				--proxy-csr-province)
+					CSR_PROVINCE=$2
+					shift
+					;;
+				--proxy-csr-city)
+					CSR_CITY=$2
+					shift
+					;;
+				--proxy-csr-organization)
+					CSR_ORGANIZATION=$2
+					shift
+					;;
+				--proxy-csr-keylength)
+					CSR_KEYLENGTH=$2
+					shift
+					;;
 				--proxy-num-workers)
 					NUM_WORKERS=$2
 					shift
@@ -414,6 +488,12 @@ parse_cmd_line_args()
 					;;
 				--sqlguard-ip)
 					COLLECTOR=$2
+					shift
+					;;
+				--override-server-ip)
+					FORCE_SERVER_IP=1
+					TAP_IP=$2
+					PRIVATE_TAP_IP="127.0.0.1"
 					shift
 					;;
 				--participate-in-load-balancing)
@@ -456,6 +536,54 @@ parse_cmd_line_args()
 					KILL_AFTER=$2
 					shift
 					;;
+				--envvar)
+					ENVVARS+="-e ${2} "
+					shift
+					;;
+				--mount)
+					# in the form volume:/mountpoint
+					MNTSRC=`echo "${2}" | cut -d':' -f1`
+					MNTDST=`echo "${2}" | cut -d':' -f2`
+					if [ "$MNTSRC" = "" ] || [ "$MNTDST" = "" ] ; then
+						echo "--mount needs source:/destination"
+						exit 1
+					fi
+					MOUNTS+="--mount type=bind,source=$MNTSRC,target=$MNTDST "
+					shift
+					;;
+				--volume)
+					# in the form volume:/mountpoint[:options]
+					# volume needs to be a docker volume, not just a dir
+					VOLARGS=${2}
+					VOLSRC=`echo "${2}" | cut -d':' -f1`
+					if [ "$VOLSRC" = "" ] ; then
+						echo "--persistent needs Docker volume name"
+						exit 1
+					fi
+					docker volume ls | grep -w "$VOLSRC" >/dev/null 2>&1
+					if [ $? -ne 0 ] ; then
+						echo "--persistent Docker volume does not exist"
+						exit 1
+					fi
+					MOUNTS+="--volume $VOLARGS "
+					shift
+					;;
+				--persistent)
+					# volume needs to be a docker volume, not just a dir
+					VOLSRC=${2}
+					VOLDST=/persistent
+					if [ "$VOLSRC" = "" ] ; then
+						echo "--persistent needs Docker volume name"
+						exit 1
+					fi
+					docker volume ls | grep -w "$VOLSRC" >/dev/null 2>&1
+					if [ $? -ne 0 ] ; then
+						echo "--persistent Docker volume does not exist"
+						exit 1
+					fi
+					MOUNTS+="--volume $VOLSRC:$VOLDST:rw "
+					shift
+					;;
 				*)
 					\echo "Error: unrecognized argument $1"
 					do_usage
@@ -481,10 +609,82 @@ get_container_ip()
 	fi
 }
 
+validate_ip() {
+	ERR_MSG=$1
+	RESP=$2
+	empty_ok=$3
+	if [ $empty_ok -eq 0 ]; then
+		if [ "$RESP" = "" ]; then
+			echo "$ERR_MSG \"$RESP\""
+			return 1
+		fi
+	fi
+	if print $RESP | grep "^[0-9.]*$" > /dev/null 2>&1; then
+		# IPv4
+		echo "IPv4 ($RESP)"
+		if print $RESP | grep -v "^[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}$" > /dev/null 2>&1; then
+			echo "$ERR_MSG \"$RESP\""
+			return 1
+		else
+			return 0
+		fi
+	elif print $RESP | grep ":" > /dev/null 2>&1; then
+		# IPv6
+		echo "IPv6 ($RESP)"
+		if print $RESP | grep -v "^\([0-9a-fA-F]\{0,4\}:\)\{1,7\}[0-9a-fA-F]\{0,4\}$" > /dev/null 2>&1; then
+			echo "$ERR_MSG \"$RESP\""
+			return 1
+		elif [ `print $RESP | awk '{ print gsub(/:/, "") }'` -gt 7 ]; then
+			echo "$ERR_MSG \"$RESP\""
+			return 1
+		elif print $RESP | grep -v "[0-9a-fA-F]\{1,4\}$" > /dev/null 2>&1; then
+			echo "$ERR_MSG \"$RESP\""
+			return 1
+		elif print $RESP | grep ":::" > /dev/null 2>&1; then
+			echo "$ERR_MSG \"$RESP\""
+			return 1
+		elif [ `print $RESP | awk '{ print gsub(/::/, "") }'` -ge 2 ]; then
+			echo "$ERR_MSG \"$RESP\""
+			return 1
+		elif [ `print $RESP | awk '{ print gsub(/:/, "") }'` -lt 7 ]; then
+			if print $RESP | grep -v "::"; then
+				echo "$ERR_MSG \"$RESP\""
+				return 1
+			else 
+				return 0
+			fi
+		else
+			return 0
+		fi
+	else
+		# DNS name
+		echo "DNS ($RESP)"
+		if print $RESP | grep "^-" > /dev/null 2>&1; then
+			echo "$ERR_MSG \"$RESP\""
+			return 1
+		elif print $RESP | grep "[.][0-9]*[.]" > /dev/null 2>&1; then
+			echo "$ERR_MSG \"$RESP\""
+			return 1
+		elif print $RESP | grep "[.]-" > /dev/null 2>&1; then
+			echo "$ERR_MSG \"$RESP\""
+			return 1
+		else
+			return 0
+		fi
+	fi
+}
+
 validate_integer() {
 	ERR_MSG=$1
 	RESP=$2
-	if [ "$RESP" = "" ] || print $RESP | grep "[^0-9]" > /dev/null 2>&1; then
+	empty_ok=$3
+	if [ $empty_ok -eq 0 ]; then
+		if [ "$RESP" = "" ]; then
+			echo "$ERR_MSG \"$RESP\""
+			return 1
+		fi
+	fi
+	if print $RESP | grep "[^0-9]" > /dev/null 2>&1; then
 		echo "$ERR_MSG \"$RESP\""
 		return 1
 	else
@@ -513,6 +713,8 @@ validate_string() {
 	ERR_MSG=$1
 	RESP=$2
 	empty_ok=$3
+	max_len=${4:-0}
+
 	if [ $empty_ok -eq 0 ]; then
 		if [ "$RESP" = "" ]; then
 			echo "$ERR_MSG \"$RESP\""
@@ -522,6 +724,14 @@ validate_string() {
 	if print $RESP | grep "[ 	]" > /dev/null 2>&1; then
 		echo "$ERR_MSG \"$RESP\""
 		return 1
+	elif [ $max_len -ne 0 ]; then
+		str_len=`print $RESP | wc -c`
+		if [ $str_len -gt $max_len ]; then
+			echo "$ERR_MSG \"$RESP\", longer than maximum length ${max_len}"
+			return 1
+		else
+			return 0
+		fi
 	else
 		return 0
 	fi
@@ -543,10 +753,13 @@ get_resp() {
 	QUESTION=$2
 	_TYPE=$3
 	VALID_CHARS=$4
+	max_str_len=${5:-0}
 
 	eval "DEFAULT=\"\$$VAR\""
 	VALID_CHARS="`print $VALID_CHARS | tr 'a-z' 'A-Z'`"
 	RESP_OK=1
+	# Separate questions by printing a newline each time
+	println
 	while [ $RESP_OK -ne 0 ]; do
 		if [ "$DEFAULT" != "" ]; then
 			case "$_TYPE" in
@@ -580,8 +793,20 @@ get_resp() {
 			RESP_OK=0
 		else
 			case "$_TYPE" in
+				ip)
+					validate_ip "Invalid input" "$RESP" 0
+					RESP_OK=$?
+					;;
+				ip_empty_ok)
+					validate_ip "Invalid input" "$RESP" 1
+					RESP_OK=$?
+					;;
+				integer_empty_ok)
+					validate_integer "Invalid input" "$RESP" 1
+					RESP_OK=$?
+					;;
 				integer)
-					validate_integer "Invalid input" "$RESP"
+					validate_integer "Invalid input" "$RESP" 0
 					RESP_OK=$?
 					;;
 				character)
@@ -590,15 +815,15 @@ get_resp() {
 					RESP_OK=$?
 					;;
 				string)
-					validate_string "Invalid input" "$RESP" 0
+					validate_string "Invalid input" "$RESP" 0 $max_str_len
 					RESP_OK=$?
 					;;
 				password)
-					validate_string "Invalid input" "$RESP" 0
+					validate_string "Invalid input" "$RESP" 0 $max_str_len
 					RESP_OK=$?
 					;;
 				string_empty_ok)
-					validate_string "Invalid input" "$RESP" 1
+					validate_string "Invalid input" "$RESP" 1 $max_str_len
 					RESP_OK=$?
 					;;
 				portrange)
@@ -680,7 +905,7 @@ mark_error() {
 }
 
 print_valid_db_types() {
-	echo "Valid DB types are \"oracle\", \"mssql\", \"sybase\", \"mongodb\", \"db2\", \"mysql\", \"memsql\", \"mariadb\", \"pgsql\", \"greenplumdb\", \"verticadb\""
+	echo "Valid DB types are \"oracle\", \"mssql\", \"sybase\", \"mongodb\", \"db2\", \"mysql\", \"memsql\", \"mariadb\", \"pgsql\", \"greenplumdb\", \"verticadb\", \"redis\", \"dynamodb\", \"el_search\", \"amazons3\""
 }
 
 valid_db_type() {
@@ -696,6 +921,11 @@ valid_db_type() {
 		|| [ "$1" = "pgsql" ] \
 		|| [ "$1" = "greenplumdb" ] \
 		|| [ "$1" = "verticadb" ] \
+		|| [ "$1" = "redis" ] \
+		|| [ "$1" = "dynamodb" ] \
+		|| [ "$1" = "el_search" ] \
+		|| [ "$1" = "bigquery" ] \
+		|| [ "$1" = "amazons3" ] \
 	; then
 		VALID_TYPE=0
 	fi
@@ -731,7 +961,7 @@ if [ $NI -ne 0 ] && ( [ "$ACTION" = "C" ] || [ "$ACTION" = "P" ] ); then
 			echo "--svc-container-num must be specified"
 			mark_error 1
 		else
-			validate_integer "Invalid value for --svc-container-num" "$NUMBER_OF_CONTAINERS"
+			validate_integer "Invalid value for --svc-container-num" "$NUMBER_OF_CONTAINERS" 0
 			mark_error $?
 		fi
 
@@ -759,7 +989,7 @@ if [ $NI -ne 0 ] && ( [ "$ACTION" = "C" ] || [ "$ACTION" = "P" ] ); then
 				echo "--db-port must be specified"
 				mark_error 1
 			else
-				validate_integer "Invalid value for --db-port" "$DB_PORT"
+				validate_integer "Invalid value for --db-port" "$DB_PORT" 0
 				mark_error $?
 			fi
 
@@ -787,7 +1017,7 @@ if [ $NI -ne 0 ] && ( [ "$ACTION" = "C" ] || [ "$ACTION" = "P" ] ); then
 
 		# Shouldn't happen, we set default of 1
 		if [ "$NUM_WORKERS" != "" ]; then
-			validate_integer "Invalid value for --proxy-num-workers" "$NUM_WORKERS"
+			validate_integer "Invalid value for --proxy-num-workers" "$NUM_WORKERS" 0
 			mark_error $?
 		fi
 
@@ -799,6 +1029,40 @@ if [ $NI -ne 0 ] && ( [ "$ACTION" = "C" ] || [ "$ACTION" = "P" ] ); then
 		if [ "$TOKEN" != "" ]; then
 			validate_string "Invalid value for --proxy-secret" "$TOKEN" 0
 			mark_error $?
+		fi
+
+		if [ "$CSR_NAME" != "" ]; then
+			validate_string "Invalid value for --proxy-csr-name" "$CSR_NAME" 0 64
+			mark_error $?
+			validate_string "Invalid value for --proxy-secret" "$TOKEN" 0
+			mark_error $?
+		fi
+		if [ "$CSR_COUNTRY" != "" ]; then
+			validate_string "Invalid value for --proxy-csr-country" "$CSR_COUNTRY" 0
+			mark_error $?
+		fi
+		if [ "$CSR_PROVINCE" != "" ]; then
+			validate_string "Invalid value for --proxy-csr-province" "$CSR_PROVINCE" 0
+			mark_error $?
+		fi
+		if [ "$CSR_CITY" != "" ]; then
+			validate_string "Invalid value for --proxy-csr-city" "$CSR_CITY" 0
+			mark_error $?
+		fi
+		if [ "$CSR_ORGANIZATION" != "" ]; then
+			validate_string "Invalid value for --proxy-csr-organization" "$CSR_ORGANIZATION" 0
+			mark_error $?
+		fi
+		if [ "$CSR_KEYLENGTH" != "" ]; then
+			validate_integer "Invalid value for --proxy-csr-keylength" "$CSR_KEYLENGTH" 0
+			mark_error $?
+		fi
+		if [ "$CSR_KEYLENGTH" = "" ]; then
+			CSR_KEYLENGTH=$DEFAULT_CSR_KEYLENGTH
+		fi
+		if [ $CSR_KEYLENGTH -lt 2048 ] || [ $CSR_KEYLENGTH -gt 8192 ]; then
+			println "Key length must be between 2048 and 8192"
+			mark_error 1
 		fi
 
 		developer_additional_containers_param_check
@@ -859,7 +1123,7 @@ if [ $NI -ne 0 ] && ( [ "$ACTION" = "C" ] || [ "$ACTION" = "P" ] ); then
 			echo "--db-port must be specified"
 			mark_error 1
 		else
-			validate_integer "Invalid value for --db-port" "$DB_PORT"
+			validate_integer "Invalid value for --db-port" "$DB_PORT" 0
 			mark_error $?
 		fi
 	fi
@@ -878,6 +1142,21 @@ if [ $NI -ne 0 ] && [ "$ACTION" = "U" ]; then
 		if [ "$TOKEN" != "" ]; then
 			echo "--proxy-secret not needed during upgrade"
 		fi
+		if [ "$CSR_NAME" != "" ]; then
+			echo "--proxy-csr-name not needed during upgrade"
+		fi
+		if [ "$CSR_COUNTRY" != "" ]; then
+			echo "--proxy-csr-country not needed during upgrade"
+		fi
+		if [ "$CSR_PROVINCE" != "" ]; then
+			echo "--proxy-csr-province not needed during upgrade"
+		fi
+		if [ "$CSR_CITY" != "" ]; then
+			echo "--proxy-csr-city not needed during upgrade"
+		fi
+		if [ "$CSR_ORGANIZATION" != "" ]; then
+			echo "--proxy-csr-organization not needed during upgrade"
+		fi
 		if [ "$DB_TYPE" != "" ]; then
 			echo "--db-type not needed during upgrade"
 		fi
@@ -889,7 +1168,7 @@ if [ $NI -ne 0 ] && [ "$ACTION" = "U" ]; then
 			mark_error $?
 		fi
 		if [ "$KILL_AFTER" != "" ]; then
-			validate_integer "Invalid value for --kill-after" "$KILL_AFTER"
+			validate_integer "Invalid value for --kill-after" "$KILL_AFTER" 0
 			mark_error $?
 		fi
 	else
@@ -910,6 +1189,21 @@ if [ $NI -ne 0 ] && [ "$ACTION" = "D" ]; then
 	if [ "$TOKEN" != "" ]; then
 		echo "--proxy-secret not needed during delete"
 	fi
+	if [ "$CSR_NAME" != "" ]; then
+		echo "--proxy-csr-name not needed during delete"
+	fi
+	if [ "$CSR_COUNTRY" != "" ]; then
+		echo "--proxy-csr-country not needed during delete"
+	fi
+	if [ "$CSR_PROVINCE" != "" ]; then
+		echo "--proxy-csr-province not needed during delete"
+	fi
+	if [ "$CSR_CITY" != "" ]; then
+		echo "--proxy-csr-city not needed during delete"
+	fi
+	if [ "$CSR_ORGANIZATION" != "" ]; then
+		echo "--proxy-csr-organization not needed during delete"
+	fi
 	if [ "$DB_TYPE" != "" ]; then
 		echo "--db-type not needed during delete"
 	fi
@@ -917,7 +1211,7 @@ if [ $NI -ne 0 ] && [ "$ACTION" = "D" ]; then
 		echo "--svc-image not needed during delete"
 	fi
 	if [ "$KILL_AFTER" != "" ]; then
-		validate_integer "Invalid value for --kill-after" "$KILL_AFTER"
+		validate_integer "Invalid value for --kill-after" "$KILL_AFTER" 0
 		mark_error $?
 	fi
 fi
@@ -952,8 +1246,11 @@ fi
 print_ni_param() {
 	PARAM=$1
 	VALUE=$2
-	echo "Non-interactive parameter: $PARAM $VALUE"
-	echo
+
+	# Only print parameters when there is a value
+	if [ "$VALUE" != "" ]; then
+		echo "Non-interactive parameter: $PARAM $VALUE"
+	fi
 }
 	
 if [ $NI -eq 0 ]; then
@@ -1083,6 +1380,15 @@ if [ $NI -eq 0 ]; then
 				echo
 			fi
 			get_resp \
+				"TAP_IP" \
+				"Enter an IP to override and force the server IP to be reported as (optional and uncommon, leave blank if not needed): " \
+				"ip_empty_ok"
+			if [ "${TAP_IP}" != "" ] && [ "${TAP_IP}" != "NULL" ]; then
+				print_ni_param "--override-server-ip" "$TAP_IP"
+				PRIVATE_TAP_IP="127.0.0.1"
+				FORCE_SERVER_IP=1
+			fi
+			get_resp \
 				"PROXY_PROTOCOL" \
 				"If proxy protocol version 1 is enabled for the DB traffic, enter 1, otherwise enter 0: " \
 				"character" \
@@ -1104,11 +1410,67 @@ if [ $NI -eq 0 ]; then
 			if [ $INVALID_CERT_NOTIFY = "Y" ]; then
 				print_ni_param "--invalid-cert-notify"
 			fi
+
 			get_resp \
 				"TOKEN" \
-				"If traffic is encrypted, enter the secret token which will be used to retrieve the key and certificate from the Guardium Collector: " \
+				"If traffic is encrypted and you are generating CSRs on the collector and signing them separately,\nenter the secret token which will be used to retrieve the key and signed certificate from the Guardium Collector: " \
 				"string_empty_ok"
 			print_ni_param "--proxy-secret" "$TOKEN"
+
+			if [ "$TOKEN" = "" ]; then
+				get_resp \
+					"CSR_NAME" \
+					"If traffic is encrypted and you have a signing certificate stored on the collector to automatically\nsign CSRs generated by External S-TAP, enter the Name field for the CSR's CN: " \
+					"string_empty_ok" \
+					"" \
+					64
+				print_ni_param "--proxy-csr-name" "$CSR_NAME"
+
+				if [ "$CSR_NAME" != "" ]; then
+					get_resp \
+						"CSR_COUNTRY" \
+						"Enter the Country field for the CSR's CN: " \
+						"string_empty_ok"
+					print_ni_param "--proxy-csr-country" "$CSR_COUNTRY"
+					get_resp \
+						"CSR_PROVINCE" \
+						"Enter the Province field for the CSR's CN: " \
+						"string_empty_ok"
+					print_ni_param "--proxy-csr-province" "$CSR_PROVINCE"
+					get_resp \
+						"CSR_CITY" \
+						"Enter the City field for the CSR's CN: " \
+						"string_empty_ok"
+					print_ni_param "--proxy-csr-city" "$CSR_CITY"
+					get_resp \
+						"CSR_ORGANIZATION" \
+						"Enter the Organization field for the CSR's CN: " \
+						"string_empty_ok"
+					print_ni_param "--proxy-csr-organization" "$CSR_ORGANIZATION"
+					get_resp \
+						"CSR_KEYLENGTH" \
+						"Enter the length for the CSRs private key: " \
+						"integer"
+					while [ $CSR_KEYLENGTH -lt 2048 ] || [ $CSR_KEYLENGTH -gt 8192 ]; do
+						println "Key length must be between 2048 and 8192"
+						get_resp \
+							"CSR_KEYLENGTH" \
+							"Enter the length for the CSRs private key: " \
+							"integer"
+					done
+					print_ni_param "--proxy-csr-keylength" "$CSR_KEYLENGTH"
+					get_resp \
+						"TOKEN" \
+						"Signing a CSR on the collector requires a token to authorize signing.\nPlease enter the secret token which will be used to authorize signing on the Guardium Collector: " \
+						"string"
+					print_ni_param "--proxy-secret" "$TOKEN"
+				else
+					println
+					println "External S-TAP will not be intercepting TLS traffic"
+					println
+				fi
+			fi
+
 			if [ "$GSERV_IP" = "" ]; then
 				if ! developer_have_additional_containers; then
 					get_resp \
@@ -1365,6 +1727,8 @@ get_config_from_container() {
 	INSTANCE_ENV=`ssh ${SVC_HOST_USER}@${INSTANCE_HOST} docker exec $INSTANCE_NAME env`
 	if [ $? -eq 0 ]; then
 		TAP_IP=`echo "$INSTANCE_ENV" | grep STAP_CONFIG_TAP_IP | sed "s/.*=\(.*\)/\1/"`
+		PRIVATE_TAP_IP=`echo "$INSTANCE_ENV" | grep STAP_CONFIG_TAP_PRIVATE_TAP_IP | sed "s/.*=\(.*\)/\1/"`
+		FORCE_SERVER_IP=`echo "$INSTANCE_ENV" | grep STAP_CONFIG_TAP_FORCE_SERVER_IP | sed "s/.*=\(.*\)/\1/"`
 		NUMBER_OF_CONTAINERS=`echo "$INSTANCE_ENV" | grep STAP_CONFIG_PROXY_GROUP_MEMBER_COUNT | sed "s/.*=\(.*\)/\1/"`
 		PROXY_PROTOCOL=`echo "$INSTANCE_ENV" | grep STAP_CONFIG_PROXY_PROXY_PROTOCOL | sed "s/.*=\(.*\)/\1/"`
 		INVALID_CERT_DISCO=`echo "$INSTANCE_ENV" | grep STAP_CONFIG_PROXY_DISCONNECT_ON_INVALID_CERTIFICATE | sed "s/.*=\(.*\)/\1/"`
@@ -1376,7 +1740,16 @@ get_config_from_container() {
 		LISTEN_PORT=`echo "$INSTANCE_ENV" | grep STAP_CONFIG_PROXY_LISTEN_PORT | sed "s/.*=\(.*\)/\1/"`
 		DEBUG=`echo "$INSTANCE_ENV" | grep STAP_CONFIG_PROXY_DEBUG | sed "s/.*=\(.*\)/\1/"`
 		NUM_WORKERS=`echo "$INSTANCE_ENV" | grep STAP_CONFIG_PROXY_NUM_WORKERS | sed "s/.*=\(.*\)/\1/"`
+
 		TOKEN=`echo "$INSTANCE_ENV" | grep STAP_CONFIG_PROXY_SECRET | sed "s/.*=\(.*\)/\1/"`
+
+		CSR_NAME=`echo "$INSTANCE_ENV" | grep STAP_CONFIG_PROXY_CSR_NAME | sed "s/.*=\(.*\)/\1/"`
+		CSR_COUNTRY=`echo "$INSTANCE_ENV" | grep STAP_CONFIG_PROXY_CSR_COUNTRY | sed "s/.*=\(.*\)/\1/"`
+		CSR_PROVINCE=`echo "$INSTANCE_ENV" | grep STAP_CONFIG_PROXY_CSR_PROVINCE | sed "s/.*=\(.*\)/\1/"`
+		CSR_CITY=`echo "$INSTANCE_ENV" | grep STAP_CONFIG_PROXY_CSR_CITY | sed "s/.*=\(.*\)/\1/"`
+		CSR_ORGANIZATION=`echo "$INSTANCE_ENV" | grep STAP_CONFIG_PROXY_CSR_ORGANIZATION | sed "s/.*=\(.*\)/\1/"`
+		CSR_KEYLENGTH=`echo "$INSTANCE_ENV" | grep STAP_CONFIG_PROXY_CSR_KEYLENGTH | sed "s/.*=\(.*\)/\1/"`
+
 		COLLECTOR0=`echo "$INSTANCE_ENV" | grep STAP_CONFIG_SQLGUARD_0_SQLGUARD_IP | sed "s/.*=\(.*\)/\1/"`
 		COLLECTOR1=`echo "$INSTANCE_ENV" | grep STAP_CONFIG_SQLGUARD_1_SQLGUARD_IP | sed "s/.*=\(.*\)/\1/"`
 		COLLECTOR2=`echo "$INSTANCE_ENV" | grep STAP_CONFIG_SQLGUARD_2_SQLGUARD_IP | sed "s/.*=\(.*\)/\1/"`
@@ -1390,7 +1763,9 @@ get_config_from_container() {
 		SQLGUARD_CERT_CN=`echo "$INSTANCE_ENV" | grep STAP_CONFIG_SQLGUARD_CERT_CN | sed "s/.*=\(.*\)/\1/"`
 		PARTICIPATE_IN_LOAD_BALANCING=`echo "$INSTANCE_ENV" | grep STAP_CONFIG_PARTICIPATE_IN_LOAD_BALANCING | sed "s/.*=\(.*\)/\1/"`
 
-		STAP_CONFIG_TAP_TAP_IP="${STAP_CONFIG_TAP_TAP_IP_FMT}NULL"
+		STAP_CONFIG_TAP_TAP_IP="${STAP_CONFIG_TAP_TAP_IP_FMT}${TAP_IP}"
+		STAP_CONFIG_TAP_PRIVATE_TAP_IP="${STAP_CONFIG_TAP_PRIVATE_TAP_IP_FMT}${PRIVATE_TAP_IP}"
+		STAP_CONFIG_TAP_FORCE_SERVER_IP="${STAP_CONFIG_TAP_FORCE_SERVER_IP}${FORCE_SERVER_IP}"
 		STAP_CONFIG_PROXY_GROUP_MEMBER_COUNT="${STAP_CONFIG_PROXY_GROUP_MEMBER_COUNT_FMT}${NUMBER_OF_CONTAINERS}"
 		STAP_CONFIG_PROXY_GROUP_UUID="${STAP_CONFIG_PROXY_GROUP_UUID_FMT}${UUID}"
 		if [ "${DB_HOST}" != "" ]; then
@@ -1408,7 +1783,16 @@ get_config_from_container() {
 		STAP_CONFIG_PROXY_PROXY_PROTOCOL="${STAP_CONFIG_PROXY_PROXY_PROTOCOL_FMT}${PROXY_PROTOCOL}"
 		STAP_CONFIG_PROXY_DISCONNECT_ON_INVALID_CERTIFICATE="${STAP_CONFIG_PROXY_DISCONNECT_ON_INVALID_CERTIFICATE_FMT}${INVALID_CERT_DISCO}"
 		STAP_CONFIG_PROXY_NOTIFY_ON_INVALID_CERTIFICATE="${STAP_CONFIG_PROXY_NOTIFY_ON_INVALID_CERTIFICATE_FMT}${INVALID_CERT_NOTIFY}"
+
 		STAP_CONFIG_PROXY_SECRET="${STAP_CONFIG_PROXY_SECRET_FMT}${TOKEN}"
+
+		STAP_CONFIG_PROXY_CSR_NAME="${STAP_CONFIG_PROXY_CSR_NAME_FMT}${CSR_NAME}"
+		STAP_CONFIG_PROXY_CSR_COUNTRY="${STAP_CONFIG_PROXY_CSR_COUNTRY_FMT}${CSR_COUNTRY}"
+		STAP_CONFIG_PROXY_CSR_PROVINCE="${STAP_CONFIG_PROXY_CSR_PROVINCE_FMT}${CSR_PROVINCE}"
+		STAP_CONFIG_PROXY_CSR_CITY="${STAP_CONFIG_PROXY_CSR_CITY_FMT}${CSR_CITY}"
+		STAP_CONFIG_PROXY_CSR_ORGANIZATION="${STAP_CONFIG_PROXY_CSR_ORGANIZATION_FMT}${CSR_ORGANIZATION}"
+		STAP_CONFIG_PROXY_CSR_KEYLENGTH="${STAP_CONFIG_PROXY_CSR_KEYLENGTH_FMT}${CSR_KEYLENGTH}"
+
 		SQLGUARD_PARAMS=
 		if [ "$COLLECTOR0" != "" ]; then
 			SQLGUARD_PARAMS="${SQLGUARD_PARAMS}${STAP_CONFIG_SQLGUARD_FMT}0${STAP_CONFIG_SQLGUARD_IP_FMT}${COLLECTOR0} "
@@ -1451,6 +1835,8 @@ get_config_from_container() {
 			$REQUIRED_CAPABILITIES \
 			$EXTRA_CAPABILITIES \
 			$STAP_CONFIG_TAP_TAP_IP \
+			$STAP_CONFIG_TAP_PRIVATE_TAP_IP \
+			$STAP_CONFIG_TAP_FORCE_SERVER_IP \
 			$STAP_CONFIG_PROXY_GROUP_UUID \
 			$STAP_CONFIG_PROXY_GROUP_MEMBER_COUNT \
 			$STAP_CONFIG_PROXY_DB_HOST \
@@ -1462,6 +1848,12 @@ get_config_from_container() {
 			$STAP_CONFIG_PROXY_LISTEN_PORT \
 			$STAP_CONFIG_PROXY_DEBUG \
 			$STAP_CONFIG_PROXY_SECRET \
+			$STAP_CONFIG_PROXY_CSR_NAME \
+			$STAP_CONFIG_PROXY_CSR_COUNTRY \
+			$STAP_CONFIG_PROXY_CSR_PROVINCE \
+			$STAP_CONFIG_PROXY_CSR_CITY \
+			$STAP_CONFIG_PROXY_CSR_ORGANIZATION \
+			$STAP_CONFIG_PROXY_CSR_KEYLENGTH \
 			$STAP_CONFIG_DB_0_DB_TYPE \
 			$STAP_CONFIG_PARTICIPATE_IN_LOAD_BALANCING \
 			$STAP_CONFIG_SQLGUARD_CERT_CN \
@@ -1473,8 +1865,9 @@ get_config_from_container() {
 }
 
 set_config_vars() {
-	# No reason to set this by parameter yet
-	STAP_CONFIG_TAP_TAP_IP="${STAP_CONFIG_TAP_TAP_IP_FMT}NULL"
+	STAP_CONFIG_TAP_TAP_IP="${STAP_CONFIG_TAP_TAP_IP_FMT}${TAP_IP}"
+	STAP_CONFIG_TAP_PRIVATE_TAP_IP="${STAP_CONFIG_TAP_PRIVATE_TAP_IP_FMT}${PRIVATE_TAP_IP}"
+	STAP_CONFIG_TAP_FORCE_SERVER_IP="${STAP_CONFIG_TAP_FORCE_SERVER_IP_FMT}${FORCE_SERVER_IP}"
 
 	STAP_CONFIG_PROXY_GROUP_MEMBER_COUNT="${STAP_CONFIG_PROXY_GROUP_MEMBER_COUNT_FMT}${NUMBER_OF_CONTAINERS}"
 	STAP_CONFIG_PROXY_GROUP_UUID="${STAP_CONFIG_PROXY_GROUP_UUID_FMT}${UUID}"
@@ -1503,6 +1896,14 @@ set_config_vars() {
 	fi
 
 	STAP_CONFIG_PROXY_SECRET="${STAP_CONFIG_PROXY_SECRET_FMT}${TOKEN}"
+
+	STAP_CONFIG_PROXY_CSR_NAME="${STAP_CONFIG_PROXY_CSR_NAME_FMT}${CSR_NAME}"
+	STAP_CONFIG_PROXY_CSR_COUNTRY="${STAP_CONFIG_PROXY_CSR_COUNTRY_FMT}${CSR_COUNTRY}"
+	STAP_CONFIG_PROXY_CSR_PROVINCE="${STAP_CONFIG_PROXY_CSR_PROVINCE_FMT}${CSR_PROVINCE}"
+	STAP_CONFIG_PROXY_CSR_CITY="${STAP_CONFIG_PROXY_CSR_CITY_FMT}${CSR_CITY}"
+	STAP_CONFIG_PROXY_CSR_ORGANIZATION="${STAP_CONFIG_PROXY_CSR_ORGANIZATION_FMT}${CSR_ORGANIZATION}"
+	STAP_CONFIG_PROXY_CSR_KEYLENGTH="${STAP_CONFIG_PROXY_CSR_KEYLENGTH_FMT}${CSR_KEYLENGTH}"
+
 	i=0
 	SQLGUARD_PARAMS=
 	for C in `echo $COLLECTOR | sed 's/,/ /g'`; do
@@ -1623,6 +2024,8 @@ if [ "$ACTION" = "C" ]; then
 			$REQUIRED_CAPABILITIES \
 			$EXTRA_CAPABILITIES \
 			$STAP_CONFIG_TAP_TAP_IP \
+			$STAP_CONFIG_TAP_PRIVATE_TAP_IP \
+			$STAP_CONFIG_TAP_FORCE_SERVER_IP \
 			$STAP_CONFIG_PROXY_GROUP_UUID \
 			$STAP_CONFIG_PROXY_GROUP_MEMBER_COUNT \
 			$STAP_CONFIG_PROXY_DB_HOST \
@@ -1634,6 +2037,12 @@ if [ "$ACTION" = "C" ]; then
 			$STAP_CONFIG_PROXY_LISTEN_PORT \
 			$STAP_CONFIG_PROXY_DEBUG \
 			$STAP_CONFIG_PROXY_SECRET \
+			$STAP_CONFIG_PROXY_CSR_NAME \
+			$STAP_CONFIG_PROXY_CSR_COUNTRY \
+			$STAP_CONFIG_PROXY_CSR_PROVINCE \
+			$STAP_CONFIG_PROXY_CSR_CITY \
+			$STAP_CONFIG_PROXY_CSR_ORGANIZATION \
+			$STAP_CONFIG_PROXY_CSR_KEYLENGTH \
 			$STAP_CONFIG_DB_0_DB_TYPE \
 			$STAP_CONFIG_PARTICIPATE_IN_LOAD_BALANCING \
 			$STAP_CONFIG_GUARDIUM_CA_PATH \
@@ -1675,7 +2084,7 @@ if [ "$ACTION" = "C" ]; then
 			EXPORTED_PORT=`find_available_port_in_range $INSTANCE_HOST $SVC_HOST_USER $SVC_PORT_RANGE`
 			if [ $? -eq 1 ]; then
 				if target_has_enough_memory ${INSTANCE_HOST} ${SVC_HOST_USER} ${CONTAINER_RECOMMENDED_MEMORY_FREE}; then
-					CONTAINER_HASH=`ssh ${SVC_HOST_USER}@${INSTANCE_HOST} docker run --hostname $INTERNAL_HOSTNAME --name $NAME -d $CONTAINER_CMD $SQLGUARD_PARAMS -p=:${EXPORTED_PORT}:${LISTEN_PORT}/tcp $SVC_IMAGE`
+					CONTAINER_HASH=`ssh ${SVC_HOST_USER}@${INSTANCE_HOST} docker run --hostname $INTERNAL_HOSTNAME --name $NAME -d $CONTAINER_CMD $SQLGUARD_PARAMS $ENVVARS $MOUNTS -p=:${EXPORTED_PORT}:${LISTEN_PORT}/tcp $SVC_IMAGE`
 					CONTAINER_OK=$?
 				else
 					echo "Error: Insufficient memory on target host ${INSTANCE_HOST}.  Free: ${TARGET_MEMORY_FREE} Recommended: ${CONTAINER_RECOMMENDED_MEMORY_FREE}"
@@ -1760,6 +2169,8 @@ elif [ "$ACTION" = "P" ]; then
 			$REQUIRED_CAPABILITIES \
 			$EXTRA_CAPABILITIES \
 			$STAP_CONFIG_TAP_TAP_IP \
+			$STAP_CONFIG_TAP_PRIVATE_TAP_IP \
+			$STAP_CONFIG_TAP_FORCE_SERVER_IP \
 			$STAP_CONFIG_PROXY_GROUP_UUID \
 			$STAP_CONFIG_PROXY_GROUP_MEMBER_COUNT \
 			$STAP_CONFIG_PROXY_DB_HOST \
@@ -1771,6 +2182,12 @@ elif [ "$ACTION" = "P" ]; then
 			$STAP_CONFIG_PROXY_LISTEN_PORT \
 			$STAP_CONFIG_PROXY_DEBUG \
 			$STAP_CONFIG_PROXY_SECRET \
+			$STAP_CONFIG_PROXY_CSR_NAME \
+			$STAP_CONFIG_PROXY_CSR_COUNTRY \
+			$STAP_CONFIG_PROXY_CSR_PROVINCE \
+			$STAP_CONFIG_PROXY_CSR_CITY \
+			$STAP_CONFIG_PROXY_CSR_ORGANIZATION \
+			$STAP_CONFIG_PROXY_CSR_KEYLENGTH \
 			$STAP_CONFIG_DB_0_DB_TYPE \
 			$SQLGUARD_PARAMS \
 			$STAP_CONFIG_PARTICIPATE_IN_LOAD_BALANCING \
@@ -2015,7 +2432,7 @@ elif [ "$ACTION" = "U" ]; then
 		EXPORTED_PORT=`find_available_port_in_range $INSTANCE_HOST $SVC_HOST_USER $SVC_PORT_RANGE`
 		if [ $? -eq 1 ]; then
 			# Start replacement container
-			CONTAINER_HASH=`ssh ${SVC_HOST_USER}@${INSTANCE_HOST} docker run --hostname $INTERNAL_HOSTNAME --name $INSTANCE_NAME -d $CONTAINER_CMD $SQLGUARD_PARAMS -p=:${EXPORTED_PORT}:${LISTEN_PORT}/tcp $SVC_IMAGE`
+			CONTAINER_HASH=`ssh ${SVC_HOST_USER}@${INSTANCE_HOST} docker run --hostname $INTERNAL_HOSTNAME --name $INSTANCE_NAME -d $CONTAINER_CMD $SQLGUARD_PARAMS $ENVVARS $MOUNTS -p=:${EXPORTED_PORT}:${LISTEN_PORT}/tcp $SVC_IMAGE`
 			CONTAINER_OK=$?
 			if [ $CONTAINER_OK -eq 0 ]; then
 				ssh ${SVC_HOST_USER}@${INSTANCE_HOST} docker exec ${INSTANCE_NAME}-upgrading-$$ gpctl shutdown
