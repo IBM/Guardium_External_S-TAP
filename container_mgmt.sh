@@ -217,7 +217,7 @@ do_usage() {
 	println "\t                                          optional, can be set from collector after creation.  example \"1526\""
 	println "\t[--db-type <string>]                    - specify DB type for traffic that is being proxied"
 	println "\t                                          optional, can be set from collector after creation."
-	println "\t                                          must be one of \"oracle\", \"mssql\", \"sybase\", \"mongodb\", \"db2\", \"mysql\", \"memsql\", \"mariadb\", \"pgsql\", \"greenplumdb\", \"verticadb\", \"redis\", \"dynamodb\", \"el_search\", or \"amazons3\""
+	println "\t                                          must be one of \"oracle\", \"mssql\", \"sybase\", \"mongodb\", \"db2\", \"mysql\", \"memsql\", \"mariadb\", \"pgsql\", \"greenplumdb\", \"verticadb\", \"redis\", \"dynamodb\", \"el_search\", \"amazons3\", or \"netezza\""
 	println "\t[--proxy-num-workers <#>]               - number of worker threads for the guardium external s-tap to use"
 	println "\t                                          optional, can be set from collector after creation.  example \"5\""
 	println "\t[--proxy-protocol <#>]                  - proxy protocol is enabled for the DB traffic (0: no, 1: protocol version 1)"
@@ -905,7 +905,7 @@ mark_error() {
 }
 
 print_valid_db_types() {
-	echo "Valid DB types are \"oracle\", \"mssql\", \"sybase\", \"mongodb\", \"db2\", \"mysql\", \"memsql\", \"mariadb\", \"pgsql\", \"greenplumdb\", \"verticadb\", \"redis\", \"dynamodb\", \"el_search\", \"amazons3\""
+	echo "Valid DB types are \"oracle\", \"mssql\", \"sybase\", \"mongodb\", \"db2\", \"mysql\", \"memsql\", \"mariadb\", \"pgsql\", \"greenplumdb\", \"verticadb\", \"redis\", \"dynamodb\", \"el_search\", \"amazons3\", \"netezza\""
 }
 
 valid_db_type() {
@@ -926,13 +926,13 @@ valid_db_type() {
 		|| [ "$1" = "el_search" ] \
 		|| [ "$1" = "bigquery" ] \
 		|| [ "$1" = "amazons3" ] \
+		|| [ "$1" = "netezza" ] \
 	; then
 		VALID_TYPE=0
 	fi
 		# Currently unsupported marks
 #		|| [ "$1" = "infx" ] \
 #		|| [ "$1" = "teradata" ] \
-#		|| [ "$1" = "netezza" ] \
 #		|| [ "$1" = "hadoop" ] \
 #		|| [ "$1" = "cassandra" ] \
 #		|| [ "$1" = "asterdb" ] \
@@ -946,6 +946,7 @@ valid_db_type() {
 #		|| [ "$1" = "solr" ] \
 #		|| [ "$1" = "couchbase" ] \
 #		|| [ "$1" = "neo4j" ] \
+#		|| [ "$1" = "cockroach" ] \
 	return $VALID_TYPE
 }
 
@@ -1760,6 +1761,7 @@ get_config_from_container() {
 		COLLECTOR7=`echo "$INSTANCE_ENV" | grep STAP_CONFIG_SQLGUARD_7_SQLGUARD_IP | sed "s/.*=\(.*\)/\1/"`
 		COLLECTOR8=`echo "$INSTANCE_ENV" | grep STAP_CONFIG_SQLGUARD_8_SQLGUARD_IP | sed "s/.*=\(.*\)/\1/"`
 		COLLECTOR9=`echo "$INSTANCE_ENV" | grep STAP_CONFIG_SQLGUARD_9_SQLGUARD_IP | sed "s/.*=\(.*\)/\1/"`
+
 		SQLGUARD_CERT_CN=`echo "$INSTANCE_ENV" | grep STAP_CONFIG_SQLGUARD_CERT_CN | sed "s/.*=\(.*\)/\1/"`
 		PARTICIPATE_IN_LOAD_BALANCING=`echo "$INSTANCE_ENV" | grep STAP_CONFIG_PARTICIPATE_IN_LOAD_BALANCING | sed "s/.*=\(.*\)/\1/"`
 
@@ -1824,6 +1826,7 @@ get_config_from_container() {
 		if [ "$COLLECTOR9" != "" ]; then
 			SQLGUARD_PARAMS="${SQLGUARD_PARAMS}${STAP_CONFIG_SQLGUARD_FMT}9${STAP_CONFIG_SQLGUARD_IP_FMT}${COLLECTOR9} "
 		fi
+
 		STAP_CONFIG_GUARDIUM_CA_PATH=""
 		STAP_CONFIG_SQLGUARD_CERT_CN=""
 		if [ "${SQLGUARD_CERT_CN}" != "" ]; then
@@ -2084,7 +2087,7 @@ if [ "$ACTION" = "C" ]; then
 			EXPORTED_PORT=`find_available_port_in_range $INSTANCE_HOST $SVC_HOST_USER $SVC_PORT_RANGE`
 			if [ $? -eq 1 ]; then
 				if target_has_enough_memory ${INSTANCE_HOST} ${SVC_HOST_USER} ${CONTAINER_RECOMMENDED_MEMORY_FREE}; then
-					CONTAINER_HASH=`ssh ${SVC_HOST_USER}@${INSTANCE_HOST} docker run --hostname $INTERNAL_HOSTNAME --name $NAME -d $CONTAINER_CMD $SQLGUARD_PARAMS $ENVVARS $MOUNTS -p=:${EXPORTED_PORT}:${LISTEN_PORT}/tcp $SVC_IMAGE`
+					CONTAINER_HASH=`ssh ${SVC_HOST_USER}@${INSTANCE_HOST} docker run --restart unless-stopped --hostname $INTERNAL_HOSTNAME --name $NAME -d $CONTAINER_CMD $SQLGUARD_PARAMS $ENVVARS $MOUNTS -p=:${EXPORTED_PORT}:${LISTEN_PORT}/tcp $SVC_IMAGE`
 					CONTAINER_OK=$?
 				else
 					echo "Error: Insufficient memory on target host ${INSTANCE_HOST}.  Free: ${TARGET_MEMORY_FREE} Recommended: ${CONTAINER_RECOMMENDED_MEMORY_FREE}"
@@ -2432,7 +2435,7 @@ elif [ "$ACTION" = "U" ]; then
 		EXPORTED_PORT=`find_available_port_in_range $INSTANCE_HOST $SVC_HOST_USER $SVC_PORT_RANGE`
 		if [ $? -eq 1 ]; then
 			# Start replacement container
-			CONTAINER_HASH=`ssh ${SVC_HOST_USER}@${INSTANCE_HOST} docker run --hostname $INTERNAL_HOSTNAME --name $INSTANCE_NAME -d $CONTAINER_CMD $SQLGUARD_PARAMS $ENVVARS $MOUNTS -p=:${EXPORTED_PORT}:${LISTEN_PORT}/tcp $SVC_IMAGE`
+			CONTAINER_HASH=`ssh ${SVC_HOST_USER}@${INSTANCE_HOST} docker run --restart unless-stopped --hostname $INTERNAL_HOSTNAME --name $INSTANCE_NAME -d $CONTAINER_CMD $SQLGUARD_PARAMS $ENVVARS $MOUNTS -p=:${EXPORTED_PORT}:${LISTEN_PORT}/tcp $SVC_IMAGE`
 			CONTAINER_OK=$?
 			if [ $CONTAINER_OK -eq 0 ]; then
 				ssh ${SVC_HOST_USER}@${INSTANCE_HOST} docker exec ${INSTANCE_NAME}-upgrading-$$ gpctl shutdown
