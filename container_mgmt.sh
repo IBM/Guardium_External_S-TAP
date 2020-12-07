@@ -206,6 +206,7 @@ do_usage() {
 	println "\t\t[--proxy-secret           <string>]     - use <string> as shared secret to authorize signing the CSR"
 	println
 	println "\t[--sqlguard-ip <host/ip>]               - specify collector list <host/ip> (comma delimited) for guardium external s-tap to relay decrypted traffic (primary is first)"
+	println "\t[--tenant-id <tenant ID string>]        - specify tenant ID for this deployment"
 	println "\t                                          required, example \"10.0.0.2\""
 	println "\t[--participate-in-load-balancing <num>] - STAP load balancing parameter"
 	println "\t                                          optional, default is 0 -  0: failover/no lb, 1: split, 2: redundancy, 3: not allowed, 4: threaded"
@@ -217,7 +218,7 @@ do_usage() {
 	println "\t                                          optional, can be set from collector after creation.  example \"1526\""
 	println "\t[--db-type <string>]                    - specify DB type for traffic that is being proxied"
 	println "\t                                          optional, can be set from collector after creation."
-	println "\t                                          must be one of \"oracle\", \"mssql\", \"sybase\", \"mongodb\", \"db2\", \"mysql\", \"memsql\", \"mariadb\", \"pgsql\", \"greenplumdb\", \"verticadb\", \"redis\", \"dynamodb\", \"el_search\", \"amazons3\", or \"netezza\""
+	println "\t                                          must be one of \"oracle\", \"mssql\", \"sybase\", \"mongodb\", \"db2\", \"mysql\", \"memsql\", \"mariadb\", \"pgsql\", \"greenplumdb\", \"verticadb\", \"redis\", \"dynamodb\", \"el_search\", \"amazons3\", \"cockroach\", \"netezza\", or \"hana\""
 	println "\t[--proxy-num-workers <#>]               - number of worker threads for the guardium external s-tap to use"
 	println "\t                                          optional, can be set from collector after creation.  example \"5\""
 	println "\t[--proxy-protocol <#>]                  - proxy protocol is enabled for the DB traffic (0: no, 1: protocol version 1)"
@@ -270,6 +271,8 @@ SUGGESTED_CORE_PATTERN="/tmp/core.%t.%e.%p"
 STAP_CONFIG_TAP_TAP_IP_FMT="-e STAP_CONFIG_TAP_TAP_IP="
 STAP_CONFIG_TAP_PRIVATE_TAP_IP_FMT="-e STAP_CONFIG_TAP_PRIVATE_TAP_IP="
 STAP_CONFIG_TAP_FORCE_SERVER_IP_FMT="-e STAP_CONFIG_TAP_FORCE_SERVER_IP="
+STAP_CONFIG_TAP_TENANT_ID_FMT="-e STAP_CONFIG_TAP_TENANT_ID="
+
 STAP_CONFIG_PROXY_GROUP_MEMBER_COUNT_FMT="-e STAP_CONFIG_PROXY_GROUP_MEMBER_COUNT="
 STAP_CONFIG_PROXY_GROUP_UUID_FMT="-e STAP_CONFIG_PROXY_GROUP_UUID="
 STAP_CONFIG_PROXY_DB_HOST_FMT="-e STAP_CONFIG_PROXY_DB_HOST="
@@ -337,6 +340,7 @@ DEFAULT_CSR_KEYLENGTH=2048
 CSR_KEYLENGTH=$DEFAULT_CSR_KEYLENGTH
 
 COLLECTOR=""
+TENANT_ID=""
 GUARDIUM_CA_PATH="/etc/guardium/guardium_ca.crt"
 PARTICIPATE_IN_LOAD_BALANCING=0
 NUM_WORKERS=""
@@ -488,6 +492,10 @@ parse_cmd_line_args()
 					;;
 				--sqlguard-ip)
 					COLLECTOR=$2
+					shift
+					;;
+				--tenant-id)
+					TENANT_ID=$2
 					shift
 					;;
 				--override-server-ip)
@@ -905,7 +913,7 @@ mark_error() {
 }
 
 print_valid_db_types() {
-	echo "Valid DB types are \"oracle\", \"mssql\", \"sybase\", \"mongodb\", \"db2\", \"mysql\", \"memsql\", \"mariadb\", \"pgsql\", \"greenplumdb\", \"verticadb\", \"redis\", \"dynamodb\", \"el_search\", \"amazons3\", \"netezza\""
+	echo "Valid DB types are \"oracle\", \"mssql\", \"sybase\", \"mongodb\", \"db2\", \"mysql\", \"memsql\", \"mariadb\", \"pgsql\", \"greenplumdb\", \"verticadb\", \"redis\", \"dynamodb\", \"el_search\", \"amazons3\", \"cockroach\", \"netezza\", \"hana\""
 }
 
 valid_db_type() {
@@ -926,13 +934,16 @@ valid_db_type() {
 		|| [ "$1" = "el_search" ] \
 		|| [ "$1" = "bigquery" ] \
 		|| [ "$1" = "amazons3" ] \
+		|| [ "$1" = "cockroach" ] \
 		|| [ "$1" = "netezza" ] \
+		|| [ "$1" = "hana" ] \
 	; then
 		VALID_TYPE=0
 	fi
 		# Currently unsupported marks
 #		|| [ "$1" = "infx" ] \
 #		|| [ "$1" = "teradata" ] \
+#		|| [ "$1" = "netezza" ] \
 #		|| [ "$1" = "hadoop" ] \
 #		|| [ "$1" = "cassandra" ] \
 #		|| [ "$1" = "asterdb" ] \
@@ -946,7 +957,6 @@ valid_db_type() {
 #		|| [ "$1" = "solr" ] \
 #		|| [ "$1" = "couchbase" ] \
 #		|| [ "$1" = "neo4j" ] \
-#		|| [ "$1" = "cockroach" ] \
 	return $VALID_TYPE
 }
 
@@ -1075,6 +1085,11 @@ if [ $NI -ne 0 ] && ( [ "$ACTION" = "C" ] || [ "$ACTION" = "P" ] ); then
 			validate_string "Invalid value for --sqlguard-ip" "$COLLECTOR" 0
 			mark_error $?
 			# TODO: verify IP
+		fi
+
+		if [ "$TENANT_ID" != "" ]; then
+			validate_string "Invalid value for --tenant-id" "$TENANT_ID" 0
+			mark_error $?
 		fi
 
 		if [ "$SVC_IMAGE" = "" ]; then
@@ -1480,6 +1495,11 @@ if [ $NI -eq 0 ]; then
 						"string"
 					print_ni_param "--sqlguard-ip" "$COLLECTOR"
 					get_resp \
+						"TENANT_ID" \
+						"Enter the tenant_id for the deployment: " \
+						"string_empty_ok"
+					print_ni_param "--tenant-id" "$TENANT_ID"
+					get_resp \
 						"PARTICIPATE_IN_LOAD_BALANCING" \
 						"Participate in load balancing or failover? 0: failover/no lb, 1) split, 2) redundancy, 3) not allowed, 4) threaded: " \
 						"character" \
@@ -1762,6 +1782,8 @@ get_config_from_container() {
 		COLLECTOR8=`echo "$INSTANCE_ENV" | grep STAP_CONFIG_SQLGUARD_8_SQLGUARD_IP | sed "s/.*=\(.*\)/\1/"`
 		COLLECTOR9=`echo "$INSTANCE_ENV" | grep STAP_CONFIG_SQLGUARD_9_SQLGUARD_IP | sed "s/.*=\(.*\)/\1/"`
 
+		TENANT_ID=`echo "$INSTANCE_ENV" | grep STAP_CONFIG_TAP_TENANT_ID | sed "s/.*=\(.*\)/\1/"`
+
 		SQLGUARD_CERT_CN=`echo "$INSTANCE_ENV" | grep STAP_CONFIG_SQLGUARD_CERT_CN | sed "s/.*=\(.*\)/\1/"`
 		PARTICIPATE_IN_LOAD_BALANCING=`echo "$INSTANCE_ENV" | grep STAP_CONFIG_PARTICIPATE_IN_LOAD_BALANCING | sed "s/.*=\(.*\)/\1/"`
 
@@ -1827,6 +1849,11 @@ get_config_from_container() {
 			SQLGUARD_PARAMS="${SQLGUARD_PARAMS}${STAP_CONFIG_SQLGUARD_FMT}9${STAP_CONFIG_SQLGUARD_IP_FMT}${COLLECTOR9} "
 		fi
 
+		STAP_CONFIG_TAP_TENANT_ID=""
+		if [ "${TENANT_ID}" != "" ]; then
+			STAP_CONFIG_TAP_TENANT_ID="${STAP_CONFIG_TAP_TENANT_ID_FMT}${TENANT_ID}"
+		fi
+
 		STAP_CONFIG_GUARDIUM_CA_PATH=""
 		STAP_CONFIG_SQLGUARD_CERT_CN=""
 		if [ "${SQLGUARD_CERT_CN}" != "" ]; then
@@ -1860,7 +1887,8 @@ get_config_from_container() {
 			$STAP_CONFIG_DB_0_DB_TYPE \
 			$STAP_CONFIG_PARTICIPATE_IN_LOAD_BALANCING \
 			$STAP_CONFIG_SQLGUARD_CERT_CN \
-			$STAP_CONFIG_GUARDIUM_CA_PATH"
+			$STAP_CONFIG_GUARDIUM_CA_PATH \
+			$STAP_CONFIG_TAP_TENANT_ID"
 
 		return 0
 	fi
@@ -1906,6 +1934,11 @@ set_config_vars() {
 	STAP_CONFIG_PROXY_CSR_CITY="${STAP_CONFIG_PROXY_CSR_CITY_FMT}${CSR_CITY}"
 	STAP_CONFIG_PROXY_CSR_ORGANIZATION="${STAP_CONFIG_PROXY_CSR_ORGANIZATION_FMT}${CSR_ORGANIZATION}"
 	STAP_CONFIG_PROXY_CSR_KEYLENGTH="${STAP_CONFIG_PROXY_CSR_KEYLENGTH_FMT}${CSR_KEYLENGTH}"
+
+	STAP_CONFIG_TAP_TENANT_ID=
+	if [ "$TENANT_ID" != "" ]; then
+		STAP_CONFIG_TAP_TENANT_ID="${STAP_CONFIG_TAP_TENANT_ID_FMT}${TENANT_ID}"
+	fi
 
 	i=0
 	SQLGUARD_PARAMS=
@@ -2049,7 +2082,8 @@ if [ "$ACTION" = "C" ]; then
 			$STAP_CONFIG_DB_0_DB_TYPE \
 			$STAP_CONFIG_PARTICIPATE_IN_LOAD_BALANCING \
 			$STAP_CONFIG_GUARDIUM_CA_PATH \
-			$STAP_CONFIG_SQLGUARD_CERT_CN"
+			$STAP_CONFIG_SQLGUARD_CERT_CN \
+			$STAP_CONFIG_TAP_TENANT_ID"
 	else
 		developer_cluster_set_command
 	fi
@@ -2195,7 +2229,8 @@ elif [ "$ACTION" = "P" ]; then
 			$SQLGUARD_PARAMS \
 			$STAP_CONFIG_PARTICIPATE_IN_LOAD_BALANCING \
 			$STAP_CONFIG_GUARDIUM_CA_PATH \
-			$STAP_CONFIG_SQLGUARD_CERT_CN"
+			$STAP_CONFIG_SQLGUARD_CERT_CN \
+			$STAP_CONFIG_TAP_TENANT_ID"
 	else
 		developer_cluster_set_command
 	fi
