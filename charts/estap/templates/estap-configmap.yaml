@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: {{ .Release.Namespace }}
+  name: {{ include "common.name" . }}-configmap
+data:
+{{- if .Values.estap.proxy }}
+  uuid: {{ .Values.estap.proxy.group_uuid | default ( uuidv4 ) | quote }}
+{{- else }}
+  uuid: {{ uuidv4 | quote }}
+{{- end }}
