@@ -4,17 +4,16 @@
 # Global Settings
 global:
   dockerRegistryPrefix: "docker.io/ibmcom/"
-  productLabelName: "Guardium_External_S-TAP"
+  image: "guardium_external_s-tap"
+  tag: "v11.3.0"
+  imagePullPolicy: IfNotPresent
+  #imagePullSecret: "docker-regcred"
   #secret: "estap-secret"
   #volumeName: "estap-pv"
 
 # Estap Settings
 estap:
   name: "estap"
-  image: "guardium_external_s-tap"
-  tag: "v11.3.0"
-  imagePullPolicy: IfNotPresent
-  #imagePullSecret: "docker-regcred"
   #nodePort: 33000
   replicas: 2
   serviceAccountName: "default"
