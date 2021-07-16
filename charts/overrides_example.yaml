@@ -33,8 +33,14 @@ global:
   #   - send automatically generated CSRs to the collector to
   #     be signed by a specific intermediate signing certificate
   # Optional, default is to not use the secret which means
-  # only clear text traffic will be intercepted.
+  # only clear text traffic will be intercepted.  If specified
+  # and does not exist, will be automatically created
   #secret: "estap-secret"
+
+  # Service account to use for creating the default secret
+  # Will be created if it does not exist
+  # Optional, default is "estap-secret-writer"
+  #secretWriterServiceAccountName: "estap-secret-writer"
 
   # Persistent volume claim
   # - required to support persisting configuration changes from
