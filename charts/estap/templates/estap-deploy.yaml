@@ -29,7 +29,7 @@ spec:
       - emptyDir: {}
         name: ephemeral
       - name: dshm
-        emptyDir:
+        emptyDir: 
           medium: Memory
           sizeLimit: 500Mi
 {{- if .Values.global }}
@@ -75,6 +75,7 @@ spec:
         - '-c'
         name: add-cert
         image: {{ include "estap-deploy.estap.registryImageTag" . }}
+        imagePullPolicy: {{ include "estap-deploy.estap.imagePullPolicy" . }}
         volumeMounts:
         - mountPath: /etc/estap-ssl
           name: estap-secret
