@@ -38,9 +38,9 @@ app.kubernetes.io/part-of: {{ .Values.estap.name | default "estap" }}
 
 {{- define "estap-deploy.estap.registryImageTag" }}
 {{- if .Values.global }}
-{{- $prefix := default .Values.global.dockerRegistryPrefix "docker.io/ibmcom/" | trimSuffix "/" }}
-{{- $image := default .Values.estap.image "guardium_external_s-tap" }}
-{{- $tag := default .Values.estap.tag "v11.3.0" }}
+{{- $prefix := .Values.global.dockerRegistryPrefix | default "docker.io/ibmcom/" | trimSuffix "/" }}
+{{- $image := .Values.global.image | default "guardium_external_s-tap" }}
+{{- $tag := .Values.global.tag | default "v11.3.0" }}
 {{- printf "%s/%s:%s" $prefix $image $tag }}
 {{- else }}
 {{- printf "docker.io/ibmcom/guardium_external_s-tap:v11.3.0" }}
@@ -151,4 +151,8 @@ readOnlyRootFilesystem: true
 
 {{- define "estap-deploy.estap.limits.memory" }}
 {{- if .Values.estap.limits }}{{ .Values.estap.limits.memory | default "756Mi" }}{{- else }}"756Mi"{{- end }}
+{{- end }}
+
+{{- define "estap-deploy.global.secretWriterServiceAccountName" }}
+{{- .Values.global.secretWriterServiceAccountName | default "estap-secret-writer" }}
 {{- end }}
