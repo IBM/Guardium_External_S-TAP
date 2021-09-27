@@ -316,11 +316,19 @@ EXTRA_CAPABILITIES="--shm-size ${CONTAINER_SHMEM_MEMORY_REQ}M"
 
 LB_SCRIPT=""
 
+LOCAL_DOCKER_CMD="docker"
+REMOTE_DOCKER_CMD="docker"
+type podman > /dev/null 2>&1
+if [ $? -eq 0 ]; then
+	LOCAL_DOCKER_CMD="podman"
+fi
+
 PRIVILEGED=""
 SVC_IMAGE=""
 SVC_PORT_RANGE="0"
 SVC_HOST="localhost"
 SVC_HOST_USER=`whoami`
+SVC_HOST_EXPORT_ANY_IP=":"
 REPO_USER=""
 REPO_PASS=""
 
@@ -352,7 +360,7 @@ KILL_AFTER=0
 
 STATE_FILE=
 
-ENVVARS=
+ENVVARS=""
 MOUNTS=
 
 NI=0
@@ -545,7 +553,7 @@ parse_cmd_line_args()
 					shift
 					;;
 				--envvar)
-					ENVVARS+="-e ${2} "
+					ENVVARS="${ENVVARS} -e ${2} "
 					shift
 					;;
 				--mount)
@@ -556,7 +564,7 @@ parse_cmd_line_args()
 						echo "--mount needs source:/destination"
 						exit 1
 					fi
-					MOUNTS+="--mount type=bind,source=$MNTSRC,target=$MNTDST "
+					MOUNTS="${MOUNTS} --mount type=bind,source=$MNTSRC,target=$MNTDST "
 					shift
 					;;
 				--volume)
@@ -568,12 +576,12 @@ parse_cmd_line_args()
 						echo "--persistent needs Docker volume name"
 						exit 1
 					fi
-					docker volume ls | grep -w "$VOLSRC" >/dev/null 2>&1
+					${LOCAL_DOCKER_CMD} volume ls | grep -w "$VOLSRC" >/dev/null 2>&1
 					if [ $? -ne 0 ] ; then
 						echo "--persistent Docker volume does not exist"
 						exit 1
 					fi
-					MOUNTS+="--volume $VOLARGS "
+					MOUNTS="${MOUNTS} --volume $VOLARGS "
 					shift
 					;;
 				--persistent)
@@ -584,12 +592,12 @@ parse_cmd_line_args()
 						echo "--persistent needs Docker volume name"
 						exit 1
 					fi
-					docker volume ls | grep -w "$VOLSRC" >/dev/null 2>&1
+					${LOCAL_DOCKER_CMD} volume ls | grep -w "$VOLSRC" >/dev/null 2>&1
 					if [ $? -ne 0 ] ; then
 						echo "--persistent Docker volume does not exist"
 						exit 1
 					fi
-					MOUNTS+="--volume $VOLSRC:$VOLDST:rw "
+					MOUNTS="${MOUNTS} --volume $VOLSRC:$VOLDST:rw "
 					shift
 					;;
 				*)
@@ -606,16 +614,16 @@ parse_cmd_line_args()
 	done
 }
 
-get_container_ip()
-{
-	_CONTAINER=$1
-	_IP=`docker inspect $_CONTAINER | grep "\"IPAddress\"" | sed -n '1p' | awk '{ print $2 }' | cut -d ',' -f1 | sed "s/\"//g"`
-	if [ "$_IP" != "" ]; then
-		echo $_IP
-	else
-		echo 0.0.0.0
-	fi
-}
+#get_container_ip()
+#{
+#	_CONTAINER=$1
+#	_IP=`${REMOTE_DOCKER_CMD} inspect $_CONTAINER | grep "\"IPAddress\"" | sed -n '1p' | awk '{ print $2 }' | cut -d ',' -f1 | sed "s/\"//g"`
+#	if [ "$_IP" != "" ]; then
+#		echo $_IP
+#	else
+#		echo 0.0.0.0
+#	fi
+#}
 
 validate_ip() {
 	ERR_MSG=$1
@@ -1589,7 +1597,9 @@ else
 fi
 
 
-if [ "$ACTION" = "C" ]; then
+if [ "$ACTION" = "C" ] || [ "$ACTION" = "D" ] || [ "$ACTION" = "U" ] || [ "$ACTION" = "Z" ]; then
+	USING_PODMAN=0
+	USING_DOCKER=0
 	# Verify accessibility of service container deployment machines
 	for HOST in `echo $SVC_HOST | sed 's/,/ /g'`; do
 		ssh ${SVC_HOST_USER}@${HOST} echo "Login to $HOST successful"
@@ -1598,7 +1608,21 @@ if [ "$ACTION" = "C" ]; then
 			do_usage
 			exit 1
 		fi
+		ssh ${SVC_HOST_USER}@${HOST} type podman >/dev/null 2>&1
+		if [ $? -eq 0 ]; then
+			USING_PODMAN=1
+		else
+			USING_DOCKER=1
+		fi
 	done
+	if [ $USING_PODMAN -eq 1 ] && [ $USING_DOCKER -eq 1 ]; then
+		echo "Some hosts are using docker and some are using podman.  All hosts must use the same interface."
+		exit 1
+	fi
+	if [ $USING_PODMAN -eq 1 ]; then
+		REMOTE_DOCKER_CMD="podman"
+		SVC_HOST_EXPORT_ANY_IP=""
+	fi
 fi
 
 if [ "$ACTION" = "C" ] || [ "$ACTION" = "P" ]; then
@@ -1626,17 +1650,17 @@ graceful_terminate() {
 	DHOST=$1
 	DNAME=$2
 	PROCESS_TAG=$3
-	ssh ${SVC_HOST_USER}@${DHOST} docker exec ${DNAME}${PROCESS_TAG} bash -c \"if [ -f /etc/gp/.gp.SHUTDOWN ]\; then exit 0\; else exit 1\; fi\"
+	ssh ${SVC_HOST_USER}@${DHOST} ${REMOTE_DOCKER_CMD} exec ${DNAME}${PROCESS_TAG} bash -c \"if [ -f /etc/gp/.gp.SHUTDOWN ]\; then exit 0\; else exit 1\; fi\"
 	if [ $? -eq 0 ]; then
-		ssh ${SVC_HOST_USER}@${DHOST} docker rm -f ${DNAME}${PROCESS_TAG}
+		ssh ${SVC_HOST_USER}@${DHOST} ${REMOTE_DOCKER_CMD} rm -f ${DNAME}${PROCESS_TAG}
 	else
 		if [ $KILL_AFTER -gt 0 ]; then
 			WAITING=$KILL_AFTER
 			while [ $WAITING -gt 0 ]; do
 				sleep 1
-				ssh ${SVC_HOST_USER}@${DHOST} docker exec ${DNAME}${PROCESS_TAG} bash -c \"if [ -f /etc/gp/.gp.SHUTDOWN ]\; then exit 0\; else exit 1\; fi\"
+				ssh ${SVC_HOST_USER}@${DHOST} ${REMOTE_DOCKER_CMD} exec ${DNAME}${PROCESS_TAG} bash -c \"if [ -f /etc/gp/.gp.SHUTDOWN ]\; then exit 0\; else exit 1\; fi\"
 				if [ $? -eq 0 ]; then
-					ssh ${SVC_HOST_USER}@${DHOST} docker rm -f ${DNAME}${PROCESS_TAG}
+					ssh ${SVC_HOST_USER}@${DHOST} ${REMOTE_DOCKER_CMD} rm -f ${DNAME}${PROCESS_TAG}
 					break
 				else
 					WAITING=`expr $WAITING - 1`
@@ -1644,15 +1668,15 @@ graceful_terminate() {
 			done
 			if [ $WAITING -eq 0 ]; then
 				echo "Forcing stop of old container ${DNAME}${PROCESS_TAG} on host $DHOST"
-				ssh ${SVC_HOST_USER}@${DHOST} docker rm -f ${DNAME}${PROCESS_TAG}
+				ssh ${SVC_HOST_USER}@${DHOST} ${REMOTE_DOCKER_CMD} rm -f ${DNAME}${PROCESS_TAG}
 			fi
 		else
 			WAITING=30
 			while [ $WAITING -gt 0 ]; do
 				sleep 1
-				ssh ${SVC_HOST_USER}@${DHOST} docker exec ${DNAME}${PROCESS_TAG} bash -c \"if [ -f /etc/gp/.gp.SHUTDOWN ]\; then exit 0\; else exit 1\; fi\"
+				ssh ${SVC_HOST_USER}@${DHOST} ${REMOTE_DOCKER_CMD} exec ${DNAME}${PROCESS_TAG} bash -c \"if [ -f /etc/gp/.gp.SHUTDOWN ]\; then exit 0\; else exit 1\; fi\"
 				if [ $? -eq 0 ]; then
-					ssh ${SVC_HOST_USER}@${DHOST} docker rm -f ${DNAME}${PROCESS_TAG}
+					ssh ${SVC_HOST_USER}@${DHOST} ${REMOTE_DOCKER_CMD} rm -f ${DNAME}${PROCESS_TAG}
 					break
 				else
 					WAITING=`expr $WAITING - 1`
@@ -1662,7 +1686,7 @@ graceful_terminate() {
 				if [ "${PROCESS_TAG}" != "" ]; then
 					# If the PROCESS_TAG is NULL, then we're not able to rename the container, likely because
 					# it's already a zombie
-					ssh ${SVC_HOST_USER}@${DHOST} docker rename ${DNAME}${PROCESS_TAG} ${DNAME}-zombie-$$
+					ssh ${SVC_HOST_USER}@${DHOST} ${REMOTE_DOCKER_CMD} rename ${DNAME}${PROCESS_TAG} ${DNAME}-zombie-$$
 					ZOMBIES="${ZOMBIES} ZOMBIE_STATE=${DHOST},${DNAME}-zombie-$$"
 					ZNAME=${DNAME}-zombie-$$
 				else
@@ -1696,11 +1720,11 @@ upgrade_abort() {
 	for ENTRY in $UPGRADING; do
 		NAME=`echo $ENTRY | cut -d',' -f1`
 		HOST=`echo $ENTRY | cut -d',' -f2`
-		HASHES=`ssh ${SVC_HOST_USER}@${HOST} "docker ps -qf name=$NAME --no-trunc"`
+		HASHES=`ssh ${SVC_HOST_USER}@${HOST} "${REMOTE_DOCKER_CMD} ps -qf name=$NAME --no-trunc"`
 		HASH_COUNT=`echo "$HASHES" | wc -l | awk '{ gsub(/[ \t\n]+/, "", $0); printf "$0"; }'`
 		if [ $HASH_COUNT -eq 1 ]; then
 			echo "Setting naming of $HASHES back to $NAME"
-			ssh ${SVC_HOST_USER}@${HOST} "docker rename $HASHES $NAME"
+			ssh ${SVC_HOST_USER}@${HOST} "${REMOTE_DOCKER_CMD} rename $HASHES $NAME"
 		else
 			echo "Multiple entries found for $NAME"
 			echo "$HASHES"
@@ -1746,7 +1770,7 @@ get_config_from_container() {
 	INSTANCE_HOST=$1
 	INSTANCE_NAME=$2
 
-	INSTANCE_ENV=`ssh ${SVC_HOST_USER}@${INSTANCE_HOST} docker exec $INSTANCE_NAME env`
+	INSTANCE_ENV=`ssh ${SVC_HOST_USER}@${INSTANCE_HOST} ${REMOTE_DOCKER_CMD} exec $INSTANCE_NAME env`
 	if [ $? -eq 0 ]; then
 		TAP_IP=`echo "$INSTANCE_ENV" | grep STAP_CONFIG_TAP_IP | sed "s/.*=\(.*\)/\1/"`
 		PRIVATE_TAP_IP=`echo "$INSTANCE_ENV" | grep STAP_CONFIG_TAP_PRIVATE_TAP_IP | sed "s/.*=\(.*\)/\1/"`
@@ -1790,7 +1814,7 @@ get_config_from_container() {
 
 		STAP_CONFIG_TAP_TAP_IP="${STAP_CONFIG_TAP_TAP_IP_FMT}${TAP_IP}"
 		STAP_CONFIG_TAP_PRIVATE_TAP_IP="${STAP_CONFIG_TAP_PRIVATE_TAP_IP_FMT}${PRIVATE_TAP_IP}"
-		STAP_CONFIG_TAP_FORCE_SERVER_IP="${STAP_CONFIG_TAP_FORCE_SERVER_IP}${FORCE_SERVER_IP}"
+		STAP_CONFIG_TAP_FORCE_SERVER_IP="${STAP_CONFIG_TAP_FORCE_SERVER_IP_FMT}${FORCE_SERVER_IP}"
 		STAP_CONFIG_PROXY_GROUP_MEMBER_COUNT="${STAP_CONFIG_PROXY_GROUP_MEMBER_COUNT_FMT}${NUMBER_OF_CONTAINERS}"
 		STAP_CONFIG_PROXY_GROUP_UUID="${STAP_CONFIG_PROXY_GROUP_UUID_FMT}${UUID}"
 		if [ "${DB_HOST}" != "" ]; then
@@ -2020,13 +2044,13 @@ if [ "$ACTION" = "C" ]; then
 		fi
 		if [ "$SVC_IMAGE" != "" ] && echo $SVC_IMAGE | grep -qv "^localhost"; then
 			IMAGE_PULLED=0
-			PULL_RESULT=`ssh ${SVC_HOST_USER}@${HOST} docker pull $SVC_IMAGE 2>& 1`
+			PULL_RESULT=`ssh ${SVC_HOST_USER}@${HOST} ${REMOTE_DOCKER_CMD} pull $SVC_IMAGE 2>& 1`
 			PULL_RETVAL=$?
 			if [ $PULL_RETVAL -ne 0 ]; then
 				if [ "$REPO_USER" != "" ]; then
-					ssh ${SVC_HOST_USER}@${HOST} "docker login --username $REPO_USER --password $REPO_PASS"
+					ssh ${SVC_HOST_USER}@${HOST} "${REMOTE_DOCKER_CMD} login --username $REPO_USER --password $REPO_PASS"
 					if [ $? -eq 0 ]; then
-						ssh ${SVC_HOST_USER}@${HOST} docker pull $SVC_IMAGE
+						ssh ${SVC_HOST_USER}@${HOST} ${REMOTE_DOCKER_CMD} pull $SVC_IMAGE
 						if [ $? -eq 0 ]; then
 							IMAGE_PULLED=1
 						fi
@@ -2122,7 +2146,7 @@ if [ "$ACTION" = "C" ]; then
 			EXPORTED_PORT=`find_available_port_in_range $INSTANCE_HOST $SVC_HOST_USER $SVC_PORT_RANGE`
 			if [ $? -eq 1 ]; then
 				if target_has_enough_memory ${INSTANCE_HOST} ${SVC_HOST_USER} ${CONTAINER_RECOMMENDED_MEMORY_FREE}; then
-					CONTAINER_HASH=`ssh ${SVC_HOST_USER}@${INSTANCE_HOST} docker run --restart unless-stopped --hostname $INTERNAL_HOSTNAME --name $NAME -d $CONTAINER_CMD $SQLGUARD_PARAMS $ENVVARS $MOUNTS -p=:${EXPORTED_PORT}:${LISTEN_PORT}/tcp $SVC_IMAGE`
+					CONTAINER_HASH=`ssh ${SVC_HOST_USER}@${INSTANCE_HOST} ${REMOTE_DOCKER_CMD} run --restart unless-stopped --hostname $INTERNAL_HOSTNAME --name $NAME -d $CONTAINER_CMD $SQLGUARD_PARAMS $ENVVARS $MOUNTS -p=${SVC_HOST_EXPORT_ANY_IP}${EXPORTED_PORT}:${LISTEN_PORT}/tcp $SVC_IMAGE`
 					CONTAINER_OK=$?
 				else
 					echo "Error: Insufficient memory on target host ${INSTANCE_HOST}.  Free: ${TARGET_MEMORY_FREE} Recommended: ${CONTAINER_RECOMMENDED_MEMORY_FREE}"
@@ -2139,15 +2163,15 @@ if [ "$ACTION" = "C" ]; then
 		INSTANCE=`expr $INSTANCE + 1`
 		if [ $CONTAINER_OK -eq 0 ]; then
 			HASHES="$HASHES $CONTAINER_HASH"
-			CONTAINER_IP=`ssh ${SVC_HOST_USER}@${INSTANCE_HOST} docker inspect $CONTAINER_HASH | grep "\"IPAddress\"" | sed -n '1p' | awk '{ print $2 }' | cut -d ',' -f1 | sed "s/\"//g"`
-			HOST_PORT=`ssh ${SVC_HOST_USER}@${INSTANCE_HOST} docker port $CONTAINER_HASH | cut -d':' -f2`
+			CONTAINER_IP=`ssh ${SVC_HOST_USER}@${INSTANCE_HOST} ${REMOTE_DOCKER_CMD} inspect $CONTAINER_HASH | grep "\"IPAddress\"" | sed -n '1p' | awk '{ print $2 }' | cut -d ',' -f1 | sed "s/\"//g"`
+			HOST_PORT=`ssh ${SVC_HOST_USER}@${INSTANCE_HOST} ${REMOTE_DOCKER_CMD} port $CONTAINER_HASH | cut -d':' -f2`
 			SERVICE_CONTAINER_MSGS="${SERVICE_CONTAINER_MSGS}Started service container : $CONTAINER_HASH (CONTAINER_IP $CONTAINER_IP, HOST ${INSTANCE_HOST}, EXTERNAL PORT $HOST_PORT)\n"
 			# TAG: CONTAINER STATE FORMAT
 			echo "${INSTANCE_HOST},${HOST_PORT},${LISTEN_PORT},${DB_PORT},${NAME}" >> $STATE_FILE
 			if [ "$REMOVAL_CMD" = "" ]; then
-				REMOVAL_CMD="ssh ${SVC_HOST_USER}@${INSTANCE_HOST} docker rm -f $CONTAINER_HASH"
+				REMOVAL_CMD="ssh ${SVC_HOST_USER}@${INSTANCE_HOST} ${REMOTE_DOCKER_CMD} rm -f $CONTAINER_HASH"
 			else
-				REMOVAL_CMD="ssh ${SVC_HOST_USER}@${INSTANCE_HOST} docker rm -f $CONTAINER_HASH ; $REMOVAL_CMD"
+				REMOVAL_CMD="ssh ${SVC_HOST_USER}@${INSTANCE_HOST} ${REMOTE_DOCKER_CMD} rm -f $CONTAINER_HASH ; $REMOVAL_CMD"
 			fi
 			if is_developer_cluster || is_developer_automated_changes; then
 				TMPDIR=`ssh ${SVC_HOST_USER}@${INSTANCE_HOST} mktemp -d`
@@ -2269,15 +2293,15 @@ elif [ "$ACTION" = "D" ]; then
 		else
 			NOT_GEXT_INSTANCE=1
 		fi
-		HASH=`ssh ${SVC_HOST_USER}@${INSTANCE_HOST} "docker ps -qf name=$NAME" < /dev/null`
+		HASH=`ssh ${SVC_HOST_USER}@${INSTANCE_HOST} "${REMOTE_DOCKER_CMD} ps -qf name=$NAME" < /dev/null`
 		if [ "$HASH" != "" ]; then
 			echo "Removing container $HASH ($NAME) from host ${INSTANCE_HOST}"
 			if [ $NOT_GEXT_INSTANCE -eq 0 ]; then
-				ssh ${SVC_HOST_USER}@${INSTANCE_HOST} docker rename $NAME ${NAME}-stopping-$$
-				ssh ${SVC_HOST_USER}@${INSTANCE_HOST} docker exec ${NAME}-stopping-$$ gpctl shutdown
+				ssh ${SVC_HOST_USER}@${INSTANCE_HOST} ${REMOTE_DOCKER_CMD} rename $NAME ${NAME}-stopping-$$
+				ssh ${SVC_HOST_USER}@${INSTANCE_HOST} ${REMOTE_DOCKER_CMD} exec ${NAME}-stopping-$$ gpctl shutdown
 				graceful_terminate ${INSTANCE_HOST} $NAME "-stopping-$$"
 			else
-				ssh ${SVC_HOST_USER}@${INSTANCE_HOST} docker rm -f $NAME
+				ssh ${SVC_HOST_USER}@${INSTANCE_HOST} ${REMOTE_DOCKER_CMD} rm -f $NAME
 			fi
 		else
 			echo "Unable to check for container ${NAME} on ${INSTANCE_HOST}"
@@ -2319,14 +2343,14 @@ elif [ "$ACTION" = "Z" ]; then
 			NOT_ZOMBIE_INSTANCE=1
 		fi
 		if [ $NOT_ZOMBIE_INSTANCE -eq 0 ]; then
-			HASH=`ssh ${SVC_HOST_USER}@${INSTANCE_HOST} "docker ps -qf name=$NAME" < /dev/null`
+			HASH=`ssh ${SVC_HOST_USER}@${INSTANCE_HOST} "${REMOTE_DOCKER_CMD} ps -qf name=$NAME" < /dev/null`
 			if [ "$HASH" != "" ]; then
 				echo "Removing container $HASH ($NAME) from host $INSTANCE_HOST"
-				SHUTTING_DOWN=`ssh ${SVC_HOST_USER}@${INSTANCE_HOST} docker exec ${NAME} ls /etc/gp/.gp.SHUTTING_DOWN 2> /dev/null`
-				SHUT_DOWN=`ssh ${SVC_HOST_USER}@${INSTANCE_HOST} docker exec ${NAME} ls /etc/gp/.gp.SHUTDOWN 2> /dev/null`
+				SHUTTING_DOWN=`ssh ${SVC_HOST_USER}@${INSTANCE_HOST} ${REMOTE_DOCKER_CMD} exec ${NAME} ls /etc/gp/.gp.SHUTTING_DOWN 2> /dev/null`
+				SHUT_DOWN=`ssh ${SVC_HOST_USER}@${INSTANCE_HOST} ${REMOTE_DOCKER_CMD} exec ${NAME} ls /etc/gp/.gp.SHUTDOWN 2> /dev/null`
 				if [ "${SHUTTING_DOWN}" = "" ] && [ "${SHUT_DOWN}" = "" ]; then
 					# Don't call it twice
-					ssh ${SVC_HOST_USER}@${INSTANCE_HOST} docker exec ${NAME} gpctl shutdown
+					ssh ${SVC_HOST_USER}@${INSTANCE_HOST} ${REMOTE_DOCKER_CMD} exec ${NAME} gpctl shutdown
 				fi
 				graceful_terminate $INSTANCE_HOST $NAME ""
 			else
@@ -2425,7 +2449,7 @@ elif [ "$ACTION" = "U" ]; then
 
 		println "Replacing service container $INSTANCE_NAME on $INSTANCE_HOST"
 
-		#ssh ${SVC_HOST_USER}@${INSTANCE_HOST} docker pull $SVC_IMAGE
+		#ssh ${SVC_HOST_USER}@${INSTANCE_HOST} ${REMOTE_DOCKER_CMD} pull $SVC_IMAGE
 		#if [ $? -ne 0 ]; then
 		#	echo "Unable to pull $SVC_IMAGE on $INSTANCE_HOST"
 		#	upgrade_abort
@@ -2434,13 +2458,13 @@ elif [ "$ACTION" = "U" ]; then
 
 		if [ "$SVC_IMAGE" != "" ] && echo $SVC_IMAGE | grep -qv "^localhost"; then
 			IMAGE_PULLED=0
-			PULL_RESULT=`ssh ${SVC_HOST_USER}@${INSTANCE_HOST} docker pull $SVC_IMAGE 2>& 1`
+			PULL_RESULT=`ssh ${SVC_HOST_USER}@${INSTANCE_HOST} ${REMOTE_DOCKER_CMD} pull $SVC_IMAGE 2>& 1`
 			PULL_RETVAL=$?
 			if [ $PULL_RETVAL -ne 0 ]; then
 				if [ "$REPO_USER" != "" ]; then
-					ssh ${SVC_HOST_USER}@${INSTANCE_HOST} "docker login --username $REPO_USER --password $REPO_PASS"
+					ssh ${SVC_HOST_USER}@${INSTANCE_HOST} "${REMOTE_DOCKER_CMD} login --username $REPO_USER --password $REPO_PASS"
 					if [ $? -eq 0 ]; then
-						ssh ${SVC_HOST_USER}@${INSTANCE_HOST} docker pull $SVC_IMAGE
+						ssh ${SVC_HOST_USER}@${INSTANCE_HOST} ${REMOTE_DOCKER_CMD} pull $SVC_IMAGE
 						if [ $? -eq 0 ]; then
 							IMAGE_PULLED=1
 						fi
@@ -2460,7 +2484,7 @@ elif [ "$ACTION" = "U" ]; then
 
 		UPGRADING="$UPGRADING $INSTANCE_NAME,$INSTANCE_HOST"
 		# Rename original container
-		ssh ${SVC_HOST_USER}@${INSTANCE_HOST} docker rename $INSTANCE_NAME ${INSTANCE_NAME}-upgrading-$$
+		ssh ${SVC_HOST_USER}@${INSTANCE_HOST} ${REMOTE_DOCKER_CMD} rename $INSTANCE_NAME ${INSTANCE_NAME}-upgrading-$$
 		if [ $? -ne 0 ]; then
 			echo "Unable to rename $INSTANCE_NAME on $INSTANCE_HOST for upgrade"
 			upgrade_abort
@@ -2471,13 +2495,13 @@ elif [ "$ACTION" = "U" ]; then
 		EXPORTED_PORT=`find_available_port_in_range $INSTANCE_HOST $SVC_HOST_USER $SVC_PORT_RANGE`
 		if [ $? -eq 1 ]; then
 			# Start replacement container
-			CONTAINER_HASH=`ssh ${SVC_HOST_USER}@${INSTANCE_HOST} docker run --restart unless-stopped --hostname $INTERNAL_HOSTNAME --name $INSTANCE_NAME -d $CONTAINER_CMD $SQLGUARD_PARAMS $ENVVARS $MOUNTS -p=:${EXPORTED_PORT}:${LISTEN_PORT}/tcp $SVC_IMAGE`
+			CONTAINER_HASH=`ssh ${SVC_HOST_USER}@${INSTANCE_HOST} ${REMOTE_DOCKER_CMD} run --restart unless-stopped --hostname $INTERNAL_HOSTNAME --name $INSTANCE_NAME -d $CONTAINER_CMD $SQLGUARD_PARAMS $ENVVARS $MOUNTS -p=${SVC_HOST_EXPORT_ANY_IP}${EXPORTED_PORT}:${LISTEN_PORT}/tcp $SVC_IMAGE`
 			CONTAINER_OK=$?
 			if [ $CONTAINER_OK -eq 0 ]; then
-				ssh ${SVC_HOST_USER}@${INSTANCE_HOST} docker exec ${INSTANCE_NAME}-upgrading-$$ gpctl shutdown
+				ssh ${SVC_HOST_USER}@${INSTANCE_HOST} ${REMOTE_DOCKER_CMD} exec ${INSTANCE_NAME}-upgrading-$$ gpctl shutdown
 				if [ $? -ne 0 ]; then
 					echo "Unable to set container ${INSTANCE_NAME}-upgrading-$$ to shutdown state"
-					ssh ${SVC_HOST_USER}@${INSTANCE_HOST} docker rename ${INSTANCE_NAME}-upgrading-$$ ${INSTANCE_NAME}-zombie-$$
+					ssh ${SVC_HOST_USER}@${INSTANCE_HOST} ${REMOTE_DOCKER_CMD} rename ${INSTANCE_NAME}-upgrading-$$ ${INSTANCE_NAME}-zombie-$$
 					ZOMBIES="${ZOMBIES} ZOMBIE_STATE=${INSTANCE_HOST},${INSTANCE_NAME}-zombie-$$"
 					WARNINGS="$WARNINGS\n\
 Old container ${INSTANCE_NAME}-zombie-$$ still running on host $DHOST\n\
@@ -2493,8 +2517,8 @@ open connections that would be terminated by removal.\n\
 				lb_remove_one $INSTANCE_HOST $INSTANCE_PORT
 
 				HASHES="$HASHES $CONTAINER_HASH"
-				CONTAINER_IP=`ssh ${SVC_HOST_USER}@${INSTANCE_HOST} docker inspect $CONTAINER_HASH | grep "\"IPAddress\"" | sed -n '1p' | awk '{ print $2 }' | cut -d ',' -f1 | sed "s/\"//g"`
-				HOST_PORT=`ssh ${SVC_HOST_USER}@${INSTANCE_HOST} docker port $CONTAINER_HASH | cut -d':' -f2`
+				CONTAINER_IP=`ssh ${SVC_HOST_USER}@${INSTANCE_HOST} ${REMOTE_DOCKER_CMD} inspect $CONTAINER_HASH | grep "\"IPAddress\"" | sed -n '1p' | awk '{ print $2 }' | cut -d ',' -f1 | sed "s/\"//g"`
+				HOST_PORT=`ssh ${SVC_HOST_USER}@${INSTANCE_HOST} ${REMOTE_DOCKER_CMD} port $CONTAINER_HASH | cut -d':' -f2`
 				SERVICE_CONTAINER_MSGS="${SERVICE_CONTAINER_MSGS}Started service container : $CONTAINER_HASH (CONTAINER_IP $CONTAINER_IP, HOST $INSTANCE_HOST, EXTERNAL PORT $HOST_PORT)\n"
 				# TAG: CONTAINER STATE FORMAT
 				echo "$INSTANCE_HOST,$HOST_PORT,$LISTEN_PORT,$DB_PORT,$INSTANCE_NAME" >> $STATE_FILE_POST_UPGRADE

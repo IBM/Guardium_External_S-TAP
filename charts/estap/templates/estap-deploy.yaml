@@ -69,7 +69,7 @@ spec:
   {{- end }}
   {{- if .Values.global.secret }}
       initContainers:
-      - args: ["head -c -1 -q /etc/estap-ssl/tls.crt /etc/estap-ssl/tls.key > /tmp/metastore/estap.pem"]
+      - args: ["cat /etc/estap-ssl/tls.crt /etc/estap-ssl/tls.key > /tmp/metastore/estap.pem"]
         command:
         - /bin/sh
         - '-c'
