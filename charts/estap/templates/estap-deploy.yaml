@@ -12,13 +12,13 @@ spec:
   replicas: {{ include "estap-deploy.estap.replicas" . }}
   selector:
     matchLabels:
-      component: {{ .Values.estap.name }}
+      component: {{ include "common.name" . }}
       app: {{ .Values.estap.name }}
       tier: backend
   template:
     metadata:
       labels:
-        component: {{ .Values.estap.name }}
+        component: {{ include "common.name" . }}
         app: {{ .Values.estap.name }}
         tier: backend
         {{- include "common.labels" . | nindent 8 }}
@@ -68,8 +68,9 @@ spec:
       - name: {{ .Values.global.imagePullSecret }}
   {{- end }}
   {{- if .Values.global.secret }}
+    {{- if or (not .Values.estap.proxy) (not .Values.estap.proxy.secret) }}
       initContainers:
-      - args: ["cat /etc/estap-ssl/tls.crt /etc/estap-ssl/tls.key > /tmp/metastore/estap.pem"]
+      - args: ["if [ -f /etc/estap-ssl/tls.crt ] && [ -f /etc/estap-ssl/tls.key ] ; then cat /etc/estap-ssl/tls.crt /etc/estap-ssl/tls.key > /tmp/metastore/estap.pem ; fi"]
         command:
         - /bin/sh
         - '-c'
@@ -90,6 +91,7 @@ spec:
           limits:
             cpu: 100m
             memory: 512Mi
+    {{- end }}
   {{- end }}
 {{- end }}
       containers:
@@ -158,7 +160,7 @@ spec:
           - name: STAP_CONFIG_PROXY_SECRET
             valueFrom:
               secretKeyRef:
-                name: estap-secret
+                name: {{ .Values.global.secret }}
                 key: {{ .Values.estap.proxy.secret }}
         {{- if .Values.estap.proxy.csr }}
           {{- with .Values.estap.proxy.csr }}
