@@ -58,6 +58,15 @@ estap:
   # NodePort to expose
   # Optional, random port will be used when unspecified
   #nodePort: 33000
+  
+  #service:
+    # Optional, annotations to add to the service.  Typically used
+    # to link with Kubernetes provider's load balancer  
+    #annotations:
+      #service.beta.kubernetes.io/aws-load-balancer-type: "external"
+      #service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: "ip"
+    # Optional, external traffic policy for load balancer service
+    #externalTrafficPolicy: Local
 
   # Number of replicas to deploy initially
   # Optional, default is 2
