@@ -62,6 +62,7 @@ estap:
   #service:
     # Optional, annotations to add to the service.  Typically used
     # to link with Kubernetes provider's load balancer  
+    # Annotations need to be string encoded.
     #annotations:
       #service.beta.kubernetes.io/aws-load-balancer-type: "external"
       #service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: "ip"
