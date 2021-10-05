@@ -16,6 +16,14 @@ metadata:
     app.kubernetes.io/managed-by: {{ .Release.Service }}
     app.kubernetes.io/instance: {{ .Release.Name }}
     app.kubernetes.io/part-of: {{ .Values.estap.name }}
+{{- if .Values.estap.service }}
+  {{- if .Values.estap.service.annotations }}
+  annotations:
+    {{- with .Values.estap.service.annotations }}
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- end }}
+{{- end }}
 spec:
   type: LoadBalancer
   ports:
@@ -29,3 +37,8 @@ spec:
   selector:
     component: {{ include "common.name" . }}
     tier: backend
+{{- if .Values.estap.service }}
+  {{- if .Values.estap.service.externalTrafficPolicy }}
+  externalTrafficPolicy: {{ .Values.estap.service.externalTrafficPolicy }}
+  {{- end }}
+{{- end }}
