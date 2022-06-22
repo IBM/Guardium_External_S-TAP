@@ -218,10 +218,10 @@ do_usage() {
 	println "\t                                          optional, can be set from collector after creation.  example \"1526\""
 	println "\t[--db-type <string>]                    - specify DB type for traffic that is being proxied"
 	println "\t                                          optional, can be set from collector after creation."
-	println "\t                                          must be one of \"oracle\", \"mssql\", \"sybase\", \"mongodb\", \"db2\", \"mysql\", \"memsql\", \"mariadb\", \"pgsql\", \"greenplumdb\", \"verticadb\", \"redis\", \"dynamodb\", \"el_search\", \"amazons3\", \"cockroach\", \"netezza\", \"hana\", or \"snowflake\""
+	println "\t                                          must be one of \"oracle\", \"mssql\", \"sybase\", \"mongodb\", \"db2\", \"mysql\", \"memsql\", \"mariadb\", \"pgsql\", \"greenplumdb\", \"verticadb\", \"redis\", \"dynamodb\", \"el_search\", \"amazons3\", \"cockroach\", \"netezza\", \"hana\", \"snowflake\", or \"trd\""
 	println "\t[--proxy-num-workers <#>]               - number of worker threads for the guardium external s-tap to use"
 	println "\t                                          optional, can be set from collector after creation.  example \"5\""
-	println "\t[--proxy-protocol <#>]                  - proxy protocol is enabled for the DB traffic (0: no, 1: protocol version 1)"
+	println "\t[--proxy-protocol <#>]                  - proxy protocol is enabled for the DB traffic (0: no, 1: protocol version 1, 2: protocol version 2)"
 	println "\t                                          optional, can be set from collector after creation.  default is \"0\""
 	println "\t[--invalid-cert-disconnect]             - disconnect if DB server certificate cannot be verified"
 	println "\t                                          optional, can be set from collector after creation."
@@ -921,7 +921,7 @@ mark_error() {
 }
 
 print_valid_db_types() {
-	echo "Valid DB types are \"oracle\", \"mssql\", \"sybase\", \"mongodb\", \"db2\", \"mysql\", \"memsql\", \"mariadb\", \"pgsql\", \"greenplumdb\", \"verticadb\", \"redis\", \"dynamodb\", \"el_search\", \"amazons3\", \"cockroach\", \"netezza\", \"hana\", \"snowflake\""
+	echo "Valid DB types are \"oracle\", \"mssql\", \"sybase\", \"mongodb\", \"db2\", \"mysql\", \"memsql\", \"mariadb\", \"pgsql\", \"greenplumdb\", \"verticadb\", \"redis\", \"dynamodb\", \"el_search\", \"amazons3\", \"cockroach\", \"netezza\", \"hana\", \"snowflake\", \"trd\""
 }
 
 valid_db_type() {
@@ -946,6 +946,7 @@ valid_db_type() {
 		|| [ "$1" = "netezza" ] \
 		|| [ "$1" = "hana" ] \
 		|| [ "$1" = "snowflake" ] \
+		|| [ "$1" = "trd" ] \
 	; then
 		VALID_TYPE=0
 	fi
@@ -1041,7 +1042,7 @@ if [ $NI -ne 0 ] && ( [ "$ACTION" = "C" ] || [ "$ACTION" = "P" ] ); then
 			mark_error $?
 		fi
 
-		if [ "$PROXY_PROTOCOL" != "0" ] && [ "$PROXY_PROTOCOL" != "1" ]; then
+		if [ "$PROXY_PROTOCOL" != "0" ] && [ "$PROXY_PROTOCOL" != "1" ] && [ "$PROXY_PROTOCOL" != "2" ]; then
 			echo "Invalid value for --proxy-protocol $PROXY_PROTOCOL"
 			mark_error 1
 		fi
@@ -1415,9 +1416,9 @@ if [ $NI -eq 0 ]; then
 			fi
 			get_resp \
 				"PROXY_PROTOCOL" \
-				"If proxy protocol version 1 is enabled for the DB traffic, enter 1, otherwise enter 0: " \
+				"If proxy protocol version 1 is enabled for the DB traffic, enter 1, if proxy protocol version 2 is enabled for the DB traffic, enter 2, otherwise enter 0: " \
 				"character" \
-				"01"
+				"012"
 			print_ni_param "--proxy-protocol" "$PROXY_PROTOCOL"
 			get_resp \
 				"INVALID_CERT_DISCO" \
