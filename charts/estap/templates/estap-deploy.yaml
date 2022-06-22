@@ -5,21 +5,21 @@ metadata:
   namespace: {{ .Release.Namespace }}
   name: {{ include "common.name" . }}
   labels:
-    component: {{ .Values.estap.name }}
-    app: {{ .Values.estap.name }}
+    component: {{ include "common.name" . }}
+    app: {{ include "common.name" . }}
     {{- include "common.labels" . | nindent 4 }}
 spec:
   replicas: {{ include "estap-deploy.estap.replicas" . }}
   selector:
     matchLabels:
       component: {{ include "common.name" . }}
-      app: {{ .Values.estap.name }}
+      app: {{ include "common.name" . }}
       tier: backend
   template:
     metadata:
       labels:
         component: {{ include "common.name" . }}
-        app: {{ .Values.estap.name }}
+        app: {{ include "common.name" . }}
         tier: backend
         {{- include "common.labels" . | nindent 8 }}
     spec:
@@ -112,317 +112,31 @@ spec:
           periodSeconds: {{ include "estap-deploy.estap.readinessProbe.periodSeconds" . }}
           failureThreshold: {{ include "estap-deploy.estap.readinessProbe.failureThreshold" . }}
           initialDelaySeconds: {{ include "estap-deploy.estap.readinessProbe.initialDelaySeconds" . }}
+        envFrom:
+          - configMapRef:
+              name: {{ include "common.name" . }}-configmap
         env:
           - name: container
             value: docker
-{{- if .Values.estap.override_server_ip }}
-          - name: STAP_CONFIG_TAP_TAP_IP
-            value: {{ .Values.estap.override_server_ip }}
-          - name: STAP_CONFIG_TAP_PRIVATE_TAP_IP
-            value: "NULL"
-          - name: STAP_CONFIG_TAP_FORCE_SERVER_IP
-            value: "1"
-{{- else }}
-          - name: STAP_CONFIG_TAP_TAP_IP
-            value: "NULL"
-{{- end }}
-          - name: STAP_CONFIG_PARTICIPATE_IN_LOAD_BALANCING
-            value: {{ include "estap-deploy.estap.participate_in_load_balancing" . | quote }}
-          - name: STAP_CONFIG_PROXY_GROUP_MEMBER_COUNT
-            value: {{ include "estap-deploy.estap.replicas" . | quote }}
           - name: STAP_CONFIG_PROXY_GROUP_UUID
             valueFrom:
               configMapKeyRef:
                 name: {{ include "common.name" . }}-configmap
                 key: uuid
-{{- if .Values.estap.verify_guardium }}
-          - name: STAP_CONFIG_SQLGUARD_CERT_CN
-            value: {{ .Values.estap.verify_guardium.cn }}
-          - name: STAP_CONFIG_GUARDIUM_CA_PATH
-            value: {{ include "estap-deploy.estap.verify_guardium.ca_path" . }}
-{{- end }}
-          - name: STAP_CONFIG_PROXY_DEBUG
-            value: {{ include "estap-deploy.estap.proxy.debug" . | quote }}
-          - name: STAP_CONFIG_PROXY_NUM_WORKERS
-            value: {{ include "estap-deploy.estap.proxy.num_workers" . | quote }}
-          - name: STAP_CONFIG_PROXY_PROXY_PROTOCOL
-            value: {{ include "estap-deploy.estap.proxy.proxy_protocol" . | quote }}
-          - name: STAP_CONFIG_PROXY_DISCONNECT_ON_INVALID_CERTIFICATE
-            value: {{ include "estap-deploy.estap.proxy.disconnect_on_invalid_certificate" . | quote }}
-          - name: STAP_CONFIG_PROXY_NOTIFY_ON_INVALID_CERTIFICATE
-            value: {{ include "estap-deploy.estap.proxy.notify_on_invalid_certificate" . | quote }}
-          - name: STAP_CONFIG_PROXY_LISTEN_PORT
-            value: {{ include "estap-deploy.estap.proxy.listen_port" . | quote }}
-{{- if .Values.global }}
-  {{- if .Values.global.secret }}
-    {{- if .Values.estap.proxy }}
-      {{- if .Values.estap.proxy.secret }}
+{{- if .Values.estap.proxy }}
+  {{- if .Values.estap.proxy.secret }}
           - name: STAP_CONFIG_PROXY_SECRET
             valueFrom:
               secretKeyRef:
                 name: {{ .Values.global.secret }}
                 key: {{ .Values.estap.proxy.secret }}
-        {{- if .Values.estap.proxy.csr }}
-          {{- with .Values.estap.proxy.csr }}
-          - name: STAP_CONFIG_PROXY_CSR_NAME
-            value: {{ .name }}
-            {{- if .country }}
-          - name: STAP_CONFIG_PROXY_CSR_COUNTRY
-            value: {{ .country }}
-            {{- end }}
-            {{- if .province }}
-          - name: STAP_CONFIG_PROXY_CSR_PROVINCE
-            value: {{ .province }}
-            {{- end }}
-            {{- if .city }}
-          - name: STAP_CONFIG_PROXY_CSR_CITY
-            value: {{ .city }}
-            {{- end }}
-            {{- if .organization }}
-          - name: STAP_CONFIG_PROXY_CSR_ORGANIZATION
-            value: {{ .organization }}
-            {{- end }}
-            {{- if .keylength }}
-          - name: STAP_CONFIG_PROXY_CSR_KEYLENGTH
-            value: {{ .keylength | quote }}
-            {{- end }}
-          {{- end }}
-        {{- end }}
-      {{- else }}
+  {{- else }}
           - name: STAP_CONFIG_PROXY_PEM_PATH
             value: /tmp/metastore/estap.pem
-      {{- end }}
-    {{- else }}
-        - name: STAP_CONFIG_PROXY_PEM_PATH
-          value: /tmp/metastore/estap.pem
-    {{- end }}
   {{- end }}
-{{- end }}
-          - name: STAP_CONFIG_PROXY_DB_HOST
-            value: {{ .Values.estap.db.host | quote }}
-          - name: STAP_CONFIG_DB_0_REAL_DB_PORT
-            value: {{ include "estap-deploy.estap.db.port" . | quote }}
-          - name: STAP_CONFIG_DB_0_DB_TYPE
-            value: {{ .Values.estap.db.type | quote }}
-          - name: STAP_CONFIG_SQLGUARD_0_SQLGUARD_IP
-            value: {{ .Values.estap.guardium.host | quote }}
-          - name: STAP_CONFIG_SQLGUARD_0_PRIMARY
-            value: "1"
-{{- if .Values.estap.guardium.port }}
-          - name: STAP_CONFIG_SQLGUARD_0_SQLGUARD_PORT
-            value: {{ .Values.estap.guardium.port | quote }}
-{{- end }}
-{{- if .Values.estap.guardium.connection_pool_size }}
-          - name: STAP_CONFIG_SQLGUARD_0_CONNECTION_POOL_SIZE
-            value: {{ .Values.estap.guardium.connection_pool_size | quote }}
-{{- end }}
-{{- if .Values.estap.guardium.num_main_thread }}
-          - name: STAP_CONFIG_SQLGUARD_0_NUM_MAIN_THREAD
-            value: {{ .Values.estap.guardium.num_main_thread | quote }}
-{{- end }}
-{{- if .Values.estap.guardium.secondaries }}
-  {{- if $.Values.estap.guardium.secondaries }}
-    {{- with $.Values.estap.guardium.secondaries }}
-      {{- if .s1 }}
-        {{- with .s1 }}
-          {{- if .host}}
-          - name: STAP_CONFIG_SQLGUARD_1_SQLGUARD_IP
-            value: {{ .host | quote }}
-          - name: STAP_CONFIG_SQLGUARD_1_PRIMARY
-            value: "2"
-            {{- if .port}}
-          - name: STAP_CONFIG_SQLGUARD_1_SQLGUARD_PORT
-            value: {{ .port | quote }}
-            {{- end }}
-            {{- if .connection_pool_size}}
-          - name: STAP_CONFIG_SQLGUARD_1_CONNECTION_POOL_SIZE
-            value: {{ .connection_pool_size | quote }}
-            {{- end }}
-            {{- if .num_main_thread}}
-          - name: STAP_CONFIG_SQLGUARD_1_NUM_MAIN_THREAD
-            value: {{ .num_main_thread | quote }}
-            {{- end }}
-          {{- end }}
-        {{- end }}
-        {{- if .s2 }}
-          {{- with .s2 }}
-            {{- if .host}}
-          - name: STAP_CONFIG_SQLGUARD_2_SQLGUARD_IP
-            value: {{ .host | quote }}
-          - name: STAP_CONFIG_SQLGUARD_2_PRIMARY
-            value: "3"
-              {{- if .port}}
-          - name: STAP_CONFIG_SQLGUARD_2_SQLGUARD_PORT
-            value: {{ .port | quote }}
-              {{- end }}
-              {{- if .connection_pool_size}}
-          - name: STAP_CONFIG_SQLGUARD_2_CONNECTION_POOL_SIZE
-            value: {{ .connection_pool_size | quote }}
-              {{- end }}
-              {{- if .num_main_thread}}
-          - name: STAP_CONFIG_SQLGUARD_2_NUM_MAIN_THREAD
-            value: {{ .num_main_thread | quote }}
-              {{- end }}
-            {{- end }}
-          {{- end }}
-          {{- if .s3 }}
-            {{- with .s3 }}
-              {{- if .host}}
-          - name: STAP_CONFIG_SQLGUARD_3_SQLGUARD_IP
-            value: {{ .host | quote }}
-          - name: STAP_CONFIG_SQLGUARD_3_PRIMARY
-            value: "4"
-                {{- if .port}}
-          - name: STAP_CONFIG_SQLGUARD_3_SQLGUARD_PORT
-            value: {{ .port | quote }}
-                {{- end }}
-                {{- if .connection_pool_size}}
-          - name: STAP_CONFIG_SQLGUARD_3_CONNECTION_POOL_SIZE
-            value: {{ .connection_pool_size | quote }}
-                {{- end }}
-                {{- if .num_main_thread}}
-          - name: STAP_CONFIG_SQLGUARD_3_NUM_MAIN_THREAD
-            value: {{ .num_main_thread | quote }}
-                {{- end }}
-              {{- end }}
-            {{- end }}
-            {{- if .s4 }}
-              {{- with .s4 }}
-                {{- if .host}}
-          - name: STAP_CONFIG_SQLGUARD_4_SQLGUARD_IP
-            value: {{ .host | quote }}
-          - name: STAP_CONFIG_SQLGUARD_4_PRIMARY
-            value: "5"
-                  {{- if .port}}
-          - name: STAP_CONFIG_SQLGUARD_4_SQLGUARD_PORT
-            value: {{ .port | quote }}
-                  {{- end }}
-                  {{- if .connection_pool_size}}
-          - name: STAP_CONFIG_SQLGUARD_4_CONNECTION_POOL_SIZE
-            value: {{ .connection_pool_size | quote }}
-                  {{- end }}
-                  {{- if .num_main_thread}}
-          - name: STAP_CONFIG_SQLGUARD_4_NUM_MAIN_THREAD
-            value: {{ .num_main_thread | quote }}
-                  {{- end }}
-                {{- end }}
-              {{- end }}
-              {{- if .s5 }}
-                {{- with .s5 }}
-                  {{- if .host}}
-          - name: STAP_CONFIG_SQLGUARD_5_SQLGUARD_IP
-            value: {{ .host | quote }}
-          - name: STAP_CONFIG_SQLGUARD_5_PRIMARY
-            value: "6"
-                    {{- if .port}}
-          - name: STAP_CONFIG_SQLGUARD_5_SQLGUARD_PORT
-            value: {{ .port | quote }}
-                    {{- end }}
-                    {{- if .connection_pool_size}}
-          - name: STAP_CONFIG_SQLGUARD_5_CONNECTION_POOL_SIZE
-            value: {{ .connection_pool_size | quote }}
-                    {{- end }}
-                    {{- if .num_main_thread}}
-          - name: STAP_CONFIG_SQLGUARD_5_NUM_MAIN_THREAD
-            value: {{ .num_main_thread | quote }}
-                    {{- end }}
-                  {{- end }}
-                {{- end }}
-                {{- if .s6 }}
-                  {{- with .s6 }}
-                    {{- if .host}}
-          - name: STAP_CONFIG_SQLGUARD_6_SQLGUARD_IP
-            value: {{ .host | quote }}
-          - name: STAP_CONFIG_SQLGUARD_6_PRIMARY
-            value: "7"
-                      {{- if .port}}
-          - name: STAP_CONFIG_SQLGUARD_6_SQLGUARD_PORT
-            value: {{ .port | quote }}
-                      {{- end }}
-                      {{- if .connection_pool_size}}
-          - name: STAP_CONFIG_SQLGUARD_6_CONNECTION_POOL_SIZE
-            value: {{ .connection_pool_size | quote }}
-                      {{- end }}
-                      {{- if .num_main_thread}}
-          - name: STAP_CONFIG_SQLGUARD_6_NUM_MAIN_THREAD
-            value: {{ .num_main_thread | quote }}
-                      {{- end }}
-                    {{- end }}
-                  {{- end }}
-                  {{- if .s7 }}
-                    {{- with .s7 }}
-                      {{- if .host}}
-          - name: STAP_CONFIG_SQLGUARD_7_SQLGUARD_IP
-            value: {{ .host | quote }}
-          - name: STAP_CONFIG_SQLGUARD_7_PRIMARY
-            value: "8"
-                        {{- if .port}}
-          - name: STAP_CONFIG_SQLGUARD_7_SQLGUARD_PORT
-            value: {{ .port | quote }}
-                        {{- end }}
-                        {{- if .connection_pool_size}}
-          - name: STAP_CONFIG_SQLGUARD_7_CONNECTION_POOL_SIZE
-            value: {{ .connection_pool_size | quote }}
-                        {{- end }}
-                        {{- if .num_main_thread}}
-          - name: STAP_CONFIG_SQLGUARD_7_NUM_MAIN_THREAD
-            value: {{ .num_main_thread | quote }}
-                        {{- end }}
-                      {{- end }}
-                    {{- end }}
-                    {{- if .s8 }}
-                      {{- with .s8 }}
-                        {{- if .host}}
-          - name: STAP_CONFIG_SQLGUARD_8_SQLGUARD_IP
-            value: {{ .host | quote }}
-          - name: STAP_CONFIG_SQLGUARD_8_PRIMARY
-            value: "9"
-                          {{- if .port}}
-          - name: STAP_CONFIG_SQLGUARD_8_SQLGUARD_PORT
-            value: {{ .port | quote }}
-                          {{- end }}
-                          {{- if .connection_pool_size}}
-          - name: STAP_CONFIG_SQLGUARD_8_CONNECTION_POOL_SIZE
-            value: {{ .connection_pool_size | quote }}
-                          {{- end }}
-                          {{- if .num_main_thread}}
-          - name: STAP_CONFIG_SQLGUARD_8_NUM_MAIN_THREAD
-            value: {{ .num_main_thread | quote }}
-                          {{- end }}
-                        {{- end }}
-                      {{- end }}
-                      {{- if .s9 }}
-                        {{- with .s9 }}
-                          {{- if .host}}
-          - name: STAP_CONFIG_SQLGUARD_9_SQLGUARD_IP
-            value: {{ .host | quote }}
-          - name: STAP_CONFIG_SQLGUARD_9_PRIMARY
-            value: "10"
-                            {{- if .port}}
-          - name: STAP_CONFIG_SQLGUARD_9_SQLGUARD_PORT
-            value: {{ .port | quote }}
-                            {{- end }}
-                            {{- if .connection_pool_size}}
-          - name: STAP_CONFIG_SQLGUARD_9_CONNECTION_POOL_SIZE
-            value: {{ .connection_pool_size | quote }}
-                            {{- end }}
-                            {{- if .num_main_thread}}
-          - name: STAP_CONFIG_SQLGUARD_9_NUM_MAIN_THREAD
-            value: {{ .num_main_thread | quote }}
-                            {{- end }}
-                          {{- end }}
-                        {{- end }}
-                      {{- end }}
-                    {{- end }}
-                  {{- end }}
-                {{- end }}
-              {{- end }}
-            {{- end }}
-          {{- end }}
-        {{- end }}
-      {{- end }}
-    {{- end }}
-  {{- end }}
+{{- else }}
+          - name: STAP_CONFIG_PROXY_PEM_PATH
+            value: /tmp/metastore/estap.pem
 {{- end }}
         ports:
           - containerPort: 8080
