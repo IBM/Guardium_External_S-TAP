@@ -118,7 +118,7 @@ readOnlyRootFilesystem: true
 {{- end }}
 
 {{- define "estap-deploy.estap.proxy.proxy_protocol" }}
-{{- if .Values.estap.proxy }}{{- if .Values.estap.proxy.proxy_protocol }}1{{- else }}0{{- end }}{{- else }}0{{- end }}
+{{- if .Values.estap.proxy }}{{ .Values.estap.proxy.proxy_protocol | default 0 }}{{- else }}0{{- end }}
 {{- end }}
 
 {{- define "estap-deploy.estap.proxy.disconnect_on_invalid_certificate" }}
