@@ -163,6 +163,9 @@ spec:
           - mountPath: /var/run/gp
             name: ephemeral
             subPath: run_gp
+          - mountPath: /var/support/gp
+            name: ephemeral
+            subPath: support_gp
           - mountPath: /usr/local/guardium
             name: ephemeral
             subPath: usr/local/guardium
