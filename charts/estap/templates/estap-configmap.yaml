@@ -15,7 +15,7 @@ data:
 {{- end }}
 {{- if .Values.estap.override_server_ip }}
   STAP_CONFIG_TAP_TAP_IP: {{ .Values.estap.override_server_ip }}
-  STAP_CONFIG_TAP_PRIVATE_TAP_IP: "NULL"
+  STAP_CONFIG_TAP_PRIVATE_TAP_IP: "127.0.0.1"
   STAP_CONFIG_TAP_FORCE_SERVER_IP: "1"
 {{- else }}
   STAP_CONFIG_TAP_TAP_IP: "NULL"
