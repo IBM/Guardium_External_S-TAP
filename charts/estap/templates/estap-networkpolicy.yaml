@@ -1,0 +1,24 @@
+# vim: ts=2:sw=2:et
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  namespace: {{ .Release.Namespace }}
+  name: {{ include "common.name" . }}-networkpolicy
+  labels:
+    component: {{ include "common.name" . }}
+    app: {{ include "common.name" . }}
+    {{- include "common.labels" . | nindent 4 }}
+spec:
+  ingress:
+  - ports:
+    - port: {{ include "estap-deploy.estap.proxy.listen_port" . }}
+      protocol: TCP
+  egress:
+  - {}
+  podSelector:
+    matchLabels:
+      component: {{ include "common.name" . }}
+      tier: backend
+  policyTypes:
+  - Ingress
+  - Egress
