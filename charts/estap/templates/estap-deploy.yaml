@@ -70,7 +70,7 @@ spec:
   {{- if .Values.global.secret }}
     {{- if or (not .Values.estap.proxy) (not .Values.estap.proxy.secret) }}
       initContainers:
-      - args: ["if [ -f /etc/estap-ssl/tls.crt ] && [ -f /etc/estap-ssl/tls.key ] ; then cat /etc/estap-ssl/tls.crt /etc/estap-ssl/tls.key > /tmp/metastore/estap.pem ; fi"]
+      - args: ["if [ -f /etc/estap-ssl/tls.crt ] && [ -f /etc/estap-ssl/tls.key ] ; then cat /etc/estap-ssl/tls.crt > /tmp/metastore/estap.pem ; echo >> /tmp/metastore/estap.pem ; cat /etc/estap-ssl/tls.key >> /tmp/metastore/estap.pem ; fi"]
         command:
         - /bin/sh
         - '-c'
