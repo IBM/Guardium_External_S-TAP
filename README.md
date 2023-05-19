@@ -16,7 +16,7 @@ Since Guardium External S-TAP needs some information about your environment and 
 	                                          optional, default ("0") is to use the values at /proc/sys/net/ipv4/ip_local_port_range
 	                                          example "32768-61000"
 	[--svc-image <image>]                   - hash/name of guardium external s-tap image
-	                                          required, example "ibmcorp/guardium_external_s-tap:v10_6_0"
+	                                          required, example "icr.io/guardium-insights/guardium_external_s-tap:v11.5"
 	[--repo-user <username>]                - username to log in to the repository from which the service image is pulled
 	                                          optional, example "foo"
 	[--repo-pass <password>]                - password for username when loging in to the repository
@@ -99,7 +99,7 @@ Receives no parameters.  Performs any cleanup necessary to remove temporary file
 1.  Docker Store login credentials
     DOCKER_STORE_USER and DOCKER_STORE_PASS
 1.  Docker Store path for the Guardium External S-TAP image
-    ibmcorp/guardium_external_s-tap
+    icr.io/guardium-insights/guardium_external_s-tap:v11.5
 1.  Hostname(s) of the system(s) that will be running the Guardium External S-TAP instances.  List is comma-delimited.
     SERVICE_HOST_LIST
 1.  Username of user that will spawn the Guardium External S-TAP instances
@@ -129,7 +129,7 @@ Once you have collected all the necessary information for specifying how the dep
 	container_mgmt.sh \
 		--ni \
 		--c \
-		--svc-image          ibmcorp/guardium_external_s-tap:v10.6.0 \
+		--svc-image          icr.io/guardium-insights/guardium_external_s-tap:v11.5 \
 		--repo-user          DOCKER_STORE_USER \
 		--repo-pass          DOCKER_STORE_PASS \
 		--svc-host           SERVICE_HOST_LIST \
@@ -150,7 +150,7 @@ In order to upgrade the cluster, use the deployment script and the previously cr
 	container_mgmt.sh \
 		--ni \
 		--u \
-		--svc-image     ibmcorp/guardium_external_s-tap \
+		--svc-image     icr.io/guardium-insights/guardium_external_s-tap:v11.5 \
 		--svc-host-user SERVICE_HOST_USER \
 		--repo-user     DOCKER_STORE_USER \
 		--repo-pass     DOCKER_STORE_PASS \
