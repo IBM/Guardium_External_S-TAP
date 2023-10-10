@@ -1,0 +1,60 @@
+# vim: ts=2:sw=2:et
+{{- if .Values.updateSecret }}
+kind: Job
+apiVersion: batch/v1
+metadata:
+  namespace: {{ .Release.Namespace }}
+  name: {{ include "common.name" . }}-update-secret-job-{{ .Release.Revision }}
+  labels:
+    component: {{ include "common.name" . }}
+    app: {{ include "common.name" . }}
+    {{- include "common.labels" . | nindent 4 }}
+  annotations:
+    meta.helm.sh/release-name: external-stap-inheritable-secret
+spec:
+    template:
+      metadata:
+        labels:
+          run: {{ include "common.name" . }}-update-secret-job
+      spec:
+        volumes:
+        - secret:
+            secretName: {{ .Values.global.secret }}
+          name: secret-volume
+        - emptyDir: {}
+          name: metastore-volume
+        serviceAccountName: {{ include "estap-deploy.global.secretWriterServiceAccountName" . }}
+    {{- if .Values.global }}
+      {{- if .Values.global.imagePullSecret }}
+        imagePullSecrets:
+          - name: {{ .Values.global.imagePullSecret }}
+      {{- end }}
+    {{- end }}
+        initContainers:
+        - name: estap-update-secret-job-cert-gen
+          volumeMounts:
+          - mountPath: /tmp/secret
+            name: secret-volume
+          - mountPath: /tmp/metastore
+            name: metastore-volume
+          image: {{ include "estap-deploy.estap.registryImageTag" . }}
+          args: ['gpctl gen_csr && mv /var/log/gp/key.tmp.pem /tmp/metastore/tls.key && gpctl -A/tmp/secret/ca.pem -R/var/log/gp/csr.tmp.pem sign_csr > /tmp/metastore/tls.crt && rm -f /var/log/gp/csr.tmp.pem' ]
+          command:
+          - /bin/sh
+          - '-c'
+          imagePullPolicy: {{ include "estap-deploy.estap.imagePullPolicy" . }}
+        containers:
+        - name: estap-update-secret-job
+          volumeMounts:
+          - mountPath: /tmp/secret
+            name: secret-volume
+          - mountPath: /tmp/metastore
+            name: metastore-volume
+          image: {{ include "estap-deploy.estap.registryImageTag" . }}
+          args: ["env && kubectl create secret generic {{ .Values.global.secret }} --save-config --dry-run --from-file=ca.pem=/tmp/secret/ca.pem --from-file=tls.key=/tmp/metastore/tls.key --from-file=tls.crt=/tmp/metastore/tls.crt -o yaml | kubectl apply -f -"]
+          command:
+          - /bin/sh
+          - '-c'
+          imagePullPolicy: {{ include "estap-deploy.estap.imagePullPolicy" . }}
+        restartPolicy: OnFailure
+{{- end }}
