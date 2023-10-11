@@ -9,3 +9,9 @@ helm install -f overrides_example.yaml estap ./estap
 
 Uninstall can be performed by...
 helm delete estap ./estap
+
+Upgrade can be performed by...
+helm upgrade estap ./estap
+
+Certificates can be regenerated (while keeping the same CA) with...
+helm upgrade --set updateSecret=true estap ./estap
