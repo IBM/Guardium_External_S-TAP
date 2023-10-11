@@ -6,8 +6,8 @@ metadata:
   name: {{ include "common.name" . }}-lb
   labels:
     serviceType : LoadBalancer
-    app: {{ .Values.estap.name }}
-    component: {{ .Values.estap.name }}
+    app: {{ include "common.name" . }}
+    component: {{ include "common.name" . }}
     chart: "{{ .Chart.Name }}"
     heritage: {{ .Release.Service }}
     release: {{ .Release.Name }}
@@ -15,7 +15,15 @@ metadata:
     helm.sh/chart: {{ .Chart.Name }}
     app.kubernetes.io/managed-by: {{ .Release.Service }}
     app.kubernetes.io/instance: {{ .Release.Name }}
-    app.kubernetes.io/part-of: {{ .Values.estap.name }}
+    app.kubernetes.io/part-of: {{ include "common.name" . }}
+{{- if .Values.estap.service }}
+  {{- if .Values.estap.service.annotations }}
+  annotations:
+    {{- with .Values.estap.service.annotations }}
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- end }}
+{{- end }}
 spec:
   type: LoadBalancer
   ports:
@@ -29,3 +37,8 @@ spec:
   selector:
     component: {{ include "common.name" . }}
     tier: backend
+{{- if .Values.estap.service }}
+  {{- if .Values.estap.service.externalTrafficPolicy }}
+  externalTrafficPolicy: {{ .Values.estap.service.externalTrafficPolicy }}
+  {{- end }}
+{{- end }}
