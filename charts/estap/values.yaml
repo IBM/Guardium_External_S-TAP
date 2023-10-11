@@ -5,7 +5,7 @@
 global:
   dockerRegistryPrefix: "docker.io/ibmcom/"
   image: "guardium_external_s-tap"
-  tag: "v11.3.0"
+  tag: "v11.4.0"
   imagePullPolicy: IfNotPresent
   #imagePullSecret: "docker-regcred"
   #secret: "estap-secret"
