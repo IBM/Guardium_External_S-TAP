@@ -41,4 +41,8 @@ spec:
   {{- if .Values.estap.service.externalTrafficPolicy }}
   externalTrafficPolicy: {{ .Values.estap.service.externalTrafficPolicy }}
   {{- end }}
+  {{- if .Values.estap.service.loadBalancerSourceRanges }}
+  loadBalancerSourceRanges:
+    {{- toYaml .Values.estap.service.loadBalancerSourceRanges | nindent 4 }}
+  {{- end }}
 {{- end }}
