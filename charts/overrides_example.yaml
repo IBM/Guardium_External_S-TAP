@@ -8,7 +8,7 @@
 global:
   # Registry location for the container image
   # Optional
-  #dockerRegistryPrefix: "docker.io/ibmcom/"
+  #dockerRegistryPrefix: "icr.io/guardium-insights/"
   
   # Container image name in repository
   # Optional
@@ -16,7 +16,7 @@ global:
 
   # Container image tag
   # Optional
-  #tag: "v11.3.0"
+  #tag: "v12.0.1"
 
   # Pull policy for container image
   # Optional
@@ -68,6 +68,8 @@ estap:
       #service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: "ip"
     # Optional, external traffic policy for load balancer service
     #externalTrafficPolicy: Local
+    # Optional, a load balancer source range to allow traffic from
+    #loadBalancerSourceRanges: []
 
   # Number of replicas to deploy initially
   # Optional, default is 2
