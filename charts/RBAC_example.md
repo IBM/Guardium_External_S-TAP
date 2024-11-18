@@ -60,7 +60,10 @@ instead of manually creating one with certificates inside, with
 the above serviceAccount and RBAC, you can have an administrator
 create the default secret with the following yaml as an example,
 noting that the seviceAccountName and image may be different
-for you.
+for you.  The name of the secret created is in the args line 
+of the container estap-create-secret-job and, in this example, is
+'estap-secret'.  If the secret needs to be created in another
+namespace, use the kubectl option --namespace parameter.
 
 ```
 kind: Job
@@ -98,7 +101,7 @@ spec:
           - mountPath: /tmp/metastore
             name: metastore-volume
           image: icr.io/guardium-insights/guardium_external_s-tap:v12.1
-          args: ["env && kubectl create secret generic estap-secret2 --from-file=ca.pem=/tmp/metastore/ca.pem --from-file=tls.key=/tmp/metastore/tls.key --from-file=tls.crt=/tmp/metastore/tls.crt"]
+          args: ["env && kubectl create secret generic estap-secret --from-file=ca.pem=/tmp/metastore/ca.pem --from-file=tls.key=/tmp/metastore/tls.key --from-file=tls.crt=/tmp/metastore/tls.crt"]
           command:
           - /bin/sh
           - '-c'
