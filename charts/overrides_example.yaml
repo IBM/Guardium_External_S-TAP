@@ -73,7 +73,21 @@ estap:
 
   # NodePort to expose
   # Optional, random port will be used when unspecified
+  # NB: Parameter is ignored when estap.route.name is
+  # specified
   #nodePort: 33000
+  
+  # Create an OpenShift route instead of a nodePort
+  # service
+  route:
+    # name is required when using a route.  It will be appended to
+    # the service name and will be the DNS endpoint for using E-STAP
+    #name:
+    tls:
+      # These parameters are optional and the default is to not
+      # terminate SSL and to do straight passthrough
+      #insecureEdgeTerminationPolicy: None
+      #termination: passthrough
   
   #service:
     # Optional, annotations to add to the service.  Typically used
@@ -84,6 +98,8 @@ estap:
       #service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: "ip"
     # Optional, external traffic policy for load balancer service
     #externalTrafficPolicy: Local
+    # Optional, internal traffic policy for load balancer service
+    #internalTrafficPolicy: Cluster
 
   # Number of replicas to deploy initially
   # Optional, default is 2
