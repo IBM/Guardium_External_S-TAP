@@ -1,0 +1,199 @@
+# vim: ts=2:sw=2:et
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: {{ .Release.Namespace }}
+  name: {{ include "common.name" . }}
+  labels:
+    component: {{ include "common.name" . }}
+    app: {{ include "common.name" . }}
+    {{- include "common.labels" . | nindent 4 }}
+spec:
+  replicas: {{ include "estap-deploy.estap.replicas" . }}
+  selector:
+    matchLabels:
+      component: {{ include "common.name" . }}
+      app: {{ include "common.name" . }}
+      tier: backend
+  template:
+    metadata:
+      labels:
+        component: {{ include "common.name" . }}
+        app: {{ include "common.name" . }}
+        tier: backend
+        {{- include "common.labels" . | nindent 8 }}
+    spec:
+      volumes:
+      - emptyDir: {}
+        name: metastore-volume
+      - emptyDir: {}
+        name: ephemeral
+      - name: dshm
+        emptyDir: 
+          medium: Memory
+          sizeLimit: 500Mi
+{{- if .Values.global }}
+  {{- if .Values.global.secret }}
+      - name: estap-secret
+        secret:
+          secretName: {{ .Values.global.secret }}
+  {{- end }}
+  {{- if .Values.global.volumeName }}
+      - name: pv
+        persistentVolumeClaim:
+          claimName: {{ .Values.global.volumeName }}
+  {{- end }}
+{{- end }}
+      serviceAccountName: {{ include "estap-deploy.estap.serviceAccountName" . }}
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+      hostIPC: false
+      hostNetwork: false
+      hostPID: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: {{ include "estap-deploy.estap.uid" . }}
+        fsGroup: {{ include "estap-deploy.estap.fsGroup" . }}
+        supplementalGroups: [ {{ include "estap-deploy.estap.supplementalGroups" . }} ]
+{{- if .Values.global }}
+  {{- if .Values.global.imagePullSecret }}
+      imagePullSecrets:
+      - name: {{ .Values.global.imagePullSecret }}
+  {{- end }}
+  {{- if .Values.global.secret }}
+    {{- if or (not .Values.estap.proxy) (not .Values.estap.proxy.secret) }}
+      initContainers:
+      - args: ["if [ -f /etc/estap-ssl/tls.crt ] && [ -f /etc/estap-ssl/tls.key ] ; then cat /etc/estap-ssl/tls.crt > /tmp/metastore/estap.pem ; echo >> /tmp/metastore/estap.pem ; cat /etc/estap-ssl/tls.key >> /tmp/metastore/estap.pem ; fi"]
+        command:
+        - /bin/sh
+        - '-c'
+        name: add-cert
+        image: {{ include "estap-deploy.estap.registryImageTag" . }}
+        imagePullPolicy: {{ include "estap-deploy.estap.imagePullPolicy" . }}
+        volumeMounts:
+        - mountPath: /etc/estap-ssl
+          name: estap-secret
+        - mountPath: /tmp/metastore
+          name: metastore-volume
+        securityContext:
+          {{- include "estap-deploy.container.securityContext" . | nindent 10 }}
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 100m
+            memory: 512Mi
+    {{- end }}
+  {{- end }}
+{{- end }}
+      containers:
+      - imagePullPolicy: {{ include "estap-deploy.estap.imagePullPolicy" . }}
+        name: {{ include "common.name" . }}
+        image: {{ include "estap-deploy.estap.registryImageTag" . }}
+        livenessProbe:
+          exec:
+            command:
+            - {{ include "estap-deploy.estap.livenessProbe.command" . }}
+          periodSeconds: {{ include "estap-deploy.estap.livenessProbe.periodSeconds" . }}
+          failureThreshold: {{ include "estap-deploy.estap.livenessProbe.failureThreshold" . }}
+          initialDelaySeconds: {{ include "estap-deploy.estap.livenessProbe.initialDelaySeconds" . }}
+        readinessProbe:
+          exec:
+            command:
+            - {{ include "estap-deploy.estap.readinessProbe.command" . }}
+          periodSeconds: {{ include "estap-deploy.estap.readinessProbe.periodSeconds" . }}
+          failureThreshold: {{ include "estap-deploy.estap.readinessProbe.failureThreshold" . }}
+          initialDelaySeconds: {{ include "estap-deploy.estap.readinessProbe.initialDelaySeconds" . }}
+        envFrom:
+          - configMapRef:
+              name: {{ include "common.name" . }}-configmap
+        env:
+          - name: container
+            value: docker
+          - name: STAP_CONFIG_PROXY_GROUP_UUID
+            valueFrom:
+              configMapKeyRef:
+                name: {{ include "common.name" . }}-configmap
+                key: uuid
+{{- if .Values.estap.proxy }}
+  {{- if .Values.estap.proxy.secret }}
+          - name: STAP_CONFIG_PROXY_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.global.secret }}
+                key: {{ .Values.estap.proxy.secret }}
+  {{- else }}
+          - name: STAP_CONFIG_PROXY_PEM_PATH
+            value: /tmp/metastore/estap.pem
+  {{- end }}
+{{- else }}
+          - name: STAP_CONFIG_PROXY_PEM_PATH
+            value: /tmp/metastore/estap.pem
+{{- end }}
+        ports:
+          - containerPort: 8080
+            protocol: "TCP"
+            name: "http"
+          - containerPort: {{ include "estap-deploy.estap.proxy.listen_port" . }}
+            protocol: "TCP"
+            name: "db"
+        volumeMounts:
+          - mountPath: /dev/shm
+            name: dshm
+          - mountPath: /tmp
+            name: ephemeral
+            subPath: tmp
+          - mountPath: /var/log/supervisord
+            name: ephemeral
+            subPath: supervisord_log
+          - mountPath: /var/log/gp
+            name: ephemeral
+            subPath: gp_log
+          - mountPath: /var/run/supervisord
+            name: ephemeral
+            subPath: run_supervisord
+          - mountPath: /var/run/gp
+            name: ephemeral
+            subPath: run_gp
+          - mountPath: /var/support/gp
+            name: ephemeral
+            subPath: support_gp
+          - mountPath: /usr/local/guardium
+            name: ephemeral
+            subPath: usr/local/guardium
+          - mountPath: /etc/supervisor.d
+            name: ephemeral
+            subPath: etc/supervisor.d
+          - mountPath: /etc/gp
+            name: ephemeral
+            subPath: etc/gp
+          - mountPath: /tmp/metastore
+            name: metastore-volume
+{{- if .Values.global }}
+  {{- if .Values.global.volumeName }}
+          - mountPath: "/persistent"
+            name: pv
+  {{- end }}
+{{- end }}
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          privileged: false
+          readOnlyRootFilesystem: true
+        resources:
+          requests:
+            cpu: {{ include "estap-deploy.estap.requests.cpu" . }}
+            memory: {{ include "estap-deploy.estap.requests.memory" . }}
+          limits:
+            cpu: {{ include "estap-deploy.estap.limits.cpu" . }}
+            memory: {{ include "estap-deploy.estap.limits.memory" . }}

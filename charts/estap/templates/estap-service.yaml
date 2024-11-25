@@ -1,0 +1,51 @@
+# vim: ts=2:sw=2:et
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: {{ .Release.Namespace }}
+  name: {{ include "common.name" . }}-lb
+  labels:
+    serviceType : LoadBalancer
+    app: {{ include "common.name" . }}
+    component: {{ include "common.name" . }}
+    chart: "{{ .Chart.Name }}"
+    heritage: {{ .Release.Service }}
+    release: {{ .Release.Name }}
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    helm.sh/chart: {{ .Chart.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: {{ include "common.name" . }}
+{{- if .Values.estap.service }}
+  {{- if .Values.estap.service.annotations }}
+  annotations:
+    {{- with .Values.estap.service.annotations }}
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- end }}
+{{- end }}
+spec:
+{{- if .Values.estap.route.name }}
+  type: ClusterIP
+{{- else }}
+  type: LoadBalancer
+{{- end }}
+  ports:
+  - protocol: TCP
+    name: {{ include "common.name" . }}-lb
+    port: {{ include "estap-deploy.estap.proxy.listen_port" . }}
+    targetPort: {{ include "estap-deploy.estap.proxy.listen_port" . }}
+{{- if .Values.estap.nodePort }}
+    nodePort: {{ .Values.estap.nodePort }}
+{{- end }}
+  selector:
+    component: {{ include "common.name" . }}
+    tier: backend
+{{- if .Values.estap.service }}
+  {{- if .Values.estap.service.externalTrafficPolicy }}
+  externalTrafficPolicy: {{ .Values.estap.service.externalTrafficPolicy }}
+  {{- end }}
+  {{- if .Values.estap.service.internalTrafficPolicy }}
+  internalTrafficPolicy: {{ .Values.estap.service.internalTrafficPolicy }}
+  {{- end }}
+{{- end }}

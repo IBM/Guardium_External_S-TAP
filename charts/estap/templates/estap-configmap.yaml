@@ -1,0 +1,244 @@
+# vim: ts=2:sw=2:et
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: {{ .Release.Namespace }}
+  name: {{ include "common.name" . }}-configmap
+data:
+{{- if .Values.estap.proxy }}
+  uuid: {{ .Values.estap.proxy.group_uuid | default ( uuidv4 ) | quote }}
+{{- else }}
+  uuid: {{ uuidv4 | quote }}
+{{- end }}
+{{- if .Values.estap.all_can_control }}
+  STAP_CONFIG_ALL_CAN_CONTROL: {{ .Values.estap.all_can_control | quote }}
+{{- end }}
+{{- if .Values.estap.override_server_ip }}
+  STAP_CONFIG_TAP_TAP_IP: {{ .Values.estap.override_server_ip }}
+  STAP_CONFIG_TAP_PRIVATE_TAP_IP: "127.0.0.1"
+  STAP_CONFIG_TAP_FORCE_SERVER_IP: "1"
+{{- else }}
+  STAP_CONFIG_TAP_TAP_IP: "NULL"
+{{- end }}
+  STAP_CONFIG_PARTICIPATE_IN_LOAD_BALANCING: {{ include "estap-deploy.estap.participate_in_load_balancing" . | quote }}
+  STAP_CONFIG_PROXY_GROUP_MEMBER_COUNT: {{ include "estap-deploy.estap.replicas" . | quote }}
+{{- if .Values.estap.verify_guardium }}
+  STAP_CONFIG_SQLGUARD_CERT_CN: {{ .Values.estap.verify_guardium.cn }}
+  STAP_CONFIG_GUARDIUM_CA_PATH: {{ include "estap-deploy.estap.verify_guardium.ca_path" . }}
+{{- end }}
+  STAP_CONFIG_PROXY_DEBUG: {{ include "estap-deploy.estap.proxy.debug" . | quote }}
+  STAP_CONFIG_PROXY_NUM_WORKERS: {{ include "estap-deploy.estap.proxy.num_workers" . | quote }}
+  STAP_CONFIG_PROXY_PROXY_PROTOCOL: {{ include "estap-deploy.estap.proxy.proxy_protocol" . | quote }}
+  STAP_CONFIG_PROXY_DISCONNECT_ON_INVALID_CERTIFICATE: {{ include "estap-deploy.estap.proxy.disconnect_on_invalid_certificate" . | quote }}
+  STAP_CONFIG_PROXY_NOTIFY_ON_INVALID_CERTIFICATE: {{ include "estap-deploy.estap.proxy.notify_on_invalid_certificate" . | quote }}
+  STAP_CONFIG_PROXY_LISTEN_PORT: {{ include "estap-deploy.estap.proxy.listen_port" . | quote }}
+{{- if .Values.estap.proxy }}
+  {{- if .Values.estap.proxy.detect_ssl_within_x_packets }}
+  STAP_CONFIG_PROXY_DETECT_SSL_WITHIN_X_PACKETS: {{ .Values.estap.proxy.detect_ssl_within_x_packets | quote }}
+  {{- end }}
+{{- end }}
+{{- if .Values.global }}
+  {{- if .Values.global.secret }}
+    {{- if .Values.estap.proxy }}
+      {{- if .Values.estap.proxy.secret }}
+        {{- if .Values.estap.proxy.csr }}
+          {{- with .Values.estap.proxy.csr }}
+  STAP_CONFIG_PROXY_CSR_NAME: {{ .name }}
+            {{- if .country }}
+  STAP_CONFIG_PROXY_CSR_COUNTRY: {{ .country }}
+            {{- end }}
+            {{- if .province }}
+  STAP_CONFIG_PROXY_CSR_PROVINCE: {{ .province }}
+            {{- end }}
+            {{- if .city }}
+  STAP_CONFIG_PROXY_CSR_CITY: {{ .city }}
+            {{- end }}
+            {{- if .organization }}
+  STAP_CONFIG_PROXY_CSR_ORGANIZATION: {{ .organization }}
+            {{- end }}
+            {{- if .keylength }}
+  STAP_CONFIG_PROXY_CSR_KEYLENGTH: {{ .keylength | quote }}
+            {{- end }}
+          {{- end }}
+        {{- end }}
+      {{- else }}
+  STAP_CONFIG_PROXY_PEM_PATH: "/tmp/metastore/estap.pem"
+      {{- end }}
+    {{- else }}
+  STAP_CONFIG_PROXY_PEM_PATH: "/tmp/metastore/estap.pem"
+    {{- end }}
+  {{- end }}
+{{- end }}
+  STAP_CONFIG_PROXY_DB_HOST: {{ .Values.estap.db.host | quote }}
+  STAP_CONFIG_DB_0_REAL_DB_PORT: {{ include "estap-deploy.estap.db.port" . | quote }}
+  STAP_CONFIG_DB_0_DB_TYPE: {{ .Values.estap.db.type | quote }}
+  STAP_CONFIG_SQLGUARD_0_SQLGUARD_IP: {{ .Values.estap.guardium.host | quote }}
+  STAP_CONFIG_SQLGUARD_0_PRIMARY: "1"
+{{- if .Values.estap.guardium.port }}
+  STAP_CONFIG_SQLGUARD_0_SQLGUARD_PORT: {{ .Values.estap.guardium.port | quote }}
+{{- end }}
+{{- if .Values.estap.guardium.connection_pool_size }}
+  STAP_CONFIG_SQLGUARD_0_CONNECTION_POOL_SIZE: {{ .Values.estap.guardium.connection_pool_size | quote }}
+{{- end }}
+{{- if .Values.estap.guardium.num_main_thread }}
+  STAP_CONFIG_SQLGUARD_0_NUM_MAIN_THREAD: {{ .Values.estap.guardium.num_main_thread | quote }}
+{{- end }}
+{{- if .Values.estap.guardium.secondaries }}
+  {{- if $.Values.estap.guardium.secondaries }}
+    {{- with $.Values.estap.guardium.secondaries }}
+      {{- if .s1 }}
+        {{- with .s1 }}
+          {{- if .host}}
+  STAP_CONFIG_SQLGUARD_1_SQLGUARD_IP: {{ .host | quote }}
+  STAP_CONFIG_SQLGUARD_1_PRIMARY: "2"
+            {{- if .port}}
+  STAP_CONFIG_SQLGUARD_1_SQLGUARD_PORT: {{ .port | quote }}
+            {{- end }}
+            {{- if .connection_pool_size}}
+  STAP_CONFIG_SQLGUARD_1_CONNECTION_POOL_SIZE: {{ .connection_pool_size | quote }}
+            {{- end }}
+            {{- if .num_main_thread}}
+  STAP_CONFIG_SQLGUARD_1_NUM_MAIN_THREAD: {{ .num_main_thread | quote }}
+            {{- end }}
+          {{- end }}
+        {{- end }}
+        {{- if .s2 }}
+          {{- with .s2 }}
+            {{- if .host}}
+  STAP_CONFIG_SQLGUARD_2_SQLGUARD_IP: {{ .host | quote }}
+  STAP_CONFIG_SQLGUARD_2_PRIMARY: "3"
+              {{- if .port}}
+  STAP_CONFIG_SQLGUARD_2_SQLGUARD_PORT: {{ .port | quote }}
+              {{- end }}
+              {{- if .connection_pool_size}}
+  STAP_CONFIG_SQLGUARD_2_CONNECTION_POOL_SIZE: {{ .connection_pool_size | quote }}
+              {{- end }}
+              {{- if .num_main_thread}}
+  STAP_CONFIG_SQLGUARD_2_NUM_MAIN_THREAD: {{ .num_main_thread | quote }}
+              {{- end }}
+            {{- end }}
+          {{- end }}
+          {{- if .s3 }}
+            {{- with .s3 }}
+              {{- if .host}}
+  STAP_CONFIG_SQLGUARD_3_SQLGUARD_IP: {{ .host | quote }}
+  STAP_CONFIG_SQLGUARD_3_PRIMARY: "4"
+                {{- if .port}}
+  STAP_CONFIG_SQLGUARD_3_SQLGUARD_PORT: {{ .port | quote }}
+                {{- end }}
+                {{- if .connection_pool_size}}
+  STAP_CONFIG_SQLGUARD_3_CONNECTION_POOL_SIZE: {{ .connection_pool_size | quote }}
+                {{- end }}
+                {{- if .num_main_thread}}
+  STAP_CONFIG_SQLGUARD_3_NUM_MAIN_THREAD: {{ .num_main_thread | quote }}
+                {{- end }}
+              {{- end }}
+            {{- end }}
+            {{- if .s4 }}
+              {{- with .s4 }}
+                {{- if .host}}
+  STAP_CONFIG_SQLGUARD_4_SQLGUARD_IP: {{ .host | quote }}
+  STAP_CONFIG_SQLGUARD_4_PRIMARY: "5"
+                  {{- if .port}}
+  STAP_CONFIG_SQLGUARD_4_SQLGUARD_PORT: {{ .port | quote }}
+                  {{- end }}
+                  {{- if .connection_pool_size}}
+  STAP_CONFIG_SQLGUARD_4_CONNECTION_POOL_SIZE: {{ .connection_pool_size | quote }}
+                  {{- end }}
+                  {{- if .num_main_thread}}
+  STAP_CONFIG_SQLGUARD_4_NUM_MAIN_THREAD: {{ .num_main_thread | quote }}
+                  {{- end }}
+                {{- end }}
+              {{- end }}
+              {{- if .s5 }}
+                {{- with .s5 }}
+                  {{- if .host}}
+  STAP_CONFIG_SQLGUARD_5_SQLGUARD_IP: {{ .host | quote }}
+  STAP_CONFIG_SQLGUARD_5_PRIMARY: "6"
+                    {{- if .port}}
+  STAP_CONFIG_SQLGUARD_5_SQLGUARD_PORT: {{ .port | quote }}
+                    {{- end }}
+                    {{- if .connection_pool_size}}
+  STAP_CONFIG_SQLGUARD_5_CONNECTION_POOL_SIZE: {{ .connection_pool_size | quote }}
+                    {{- end }}
+                    {{- if .num_main_thread}}
+  STAP_CONFIG_SQLGUARD_5_NUM_MAIN_THREAD: {{ .num_main_thread | quote }}
+                    {{- end }}
+                  {{- end }}
+                {{- end }}
+                {{- if .s6 }}
+                  {{- with .s6 }}
+                    {{- if .host}}
+  STAP_CONFIG_SQLGUARD_6_SQLGUARD_IP: {{ .host | quote }}
+  STAP_CONFIG_SQLGUARD_6_PRIMARY: "7"
+                      {{- if .port}}
+  STAP_CONFIG_SQLGUARD_6_SQLGUARD_PORT: {{ .port | quote }}
+                      {{- end }}
+                      {{- if .connection_pool_size}}
+  STAP_CONFIG_SQLGUARD_6_CONNECTION_POOL_SIZE: {{ .connection_pool_size | quote }}
+                      {{- end }}
+                      {{- if .num_main_thread}}
+  STAP_CONFIG_SQLGUARD_6_NUM_MAIN_THREAD: {{ .num_main_thread | quote }}
+                      {{- end }}
+                    {{- end }}
+                  {{- end }}
+                  {{- if .s7 }}
+                    {{- with .s7 }}
+                      {{- if .host}}
+  STAP_CONFIG_SQLGUARD_7_SQLGUARD_IP: {{ .host | quote }}
+  STAP_CONFIG_SQLGUARD_7_PRIMARY: "8"
+                        {{- if .port}}
+  STAP_CONFIG_SQLGUARD_7_SQLGUARD_PORT: {{ .port | quote }}
+                        {{- end }}
+                        {{- if .connection_pool_size}}
+  STAP_CONFIG_SQLGUARD_7_CONNECTION_POOL_SIZE: {{ .connection_pool_size | quote }}
+                        {{- end }}
+                        {{- if .num_main_thread}}
+  STAP_CONFIG_SQLGUARD_7_NUM_MAIN_THREAD: {{ .num_main_thread | quote }}
+                        {{- end }}
+                      {{- end }}
+                    {{- end }}
+                    {{- if .s8 }}
+                      {{- with .s8 }}
+                        {{- if .host}}
+  STAP_CONFIG_SQLGUARD_8_SQLGUARD_IP: {{ .host | quote }}
+  STAP_CONFIG_SQLGUARD_8_PRIMARY: "9"
+                          {{- if .port}}
+  STAP_CONFIG_SQLGUARD_8_SQLGUARD_PORT: {{ .port | quote }}
+                          {{- end }}
+                          {{- if .connection_pool_size}}
+  STAP_CONFIG_SQLGUARD_8_CONNECTION_POOL_SIZE: {{ .connection_pool_size | quote }}
+                          {{- end }}
+                          {{- if .num_main_thread}}
+  STAP_CONFIG_SQLGUARD_8_NUM_MAIN_THREAD: {{ .num_main_thread | quote }}
+                          {{- end }}
+                        {{- end }}
+                      {{- end }}
+                      {{- if .s9 }}
+                        {{- with .s9 }}
+                          {{- if .host}}
+  STAP_CONFIG_SQLGUARD_9_SQLGUARD_IP: {{ .host | quote }}
+  STAP_CONFIG_SQLGUARD_9_PRIMARY: "10"
+                            {{- if .port}}
+  STAP_CONFIG_SQLGUARD_9_SQLGUARD_PORT: {{ .port | quote }}
+                            {{- end }}
+                            {{- if .connection_pool_size}}
+  STAP_CONFIG_SQLGUARD_9_CONNECTION_POOL_SIZE: {{ .connection_pool_size | quote }}
+                            {{- end }}
+                            {{- if .num_main_thread}}
+  STAP_CONFIG_SQLGUARD_9_NUM_MAIN_THREAD: {{ .num_main_thread | quote }}
+                            {{- end }}
+                          {{- end }}
+                        {{- end }}
+                      {{- end }}
+                    {{- end }}
+                  {{- end }}
+                {{- end }}
+              {{- end }}
+            {{- end }}
+          {{- end }}
+        {{- end }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+{{- end }}

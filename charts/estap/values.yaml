@@ -1,0 +1,114 @@
+# This is a YAML-formatted file.
+# vim: ts=2:sw=2:et
+
+# Global Settings
+global:
+  dockerRegistryPrefix: "icr.io/guardium-insights/"
+  image: "guardium_external_s-tap"
+  tag: "v12.1"
+  imagePullPolicy: IfNotPresent
+  #imagePullSecret: "docker-regcred"
+  #secret: "estap-secret"
+  #volumeName: "estap-pv"
+
+# Estap Settings
+estap:
+  name: "estap"
+  #nodePort: 33000
+  replicas: 2
+  serviceAccountName: "default"
+  requests:
+    cpu: 100m
+    memory: 512Mi
+  limits:
+    cpu: 500m
+    memory: 756Mi
+  uid: 1000
+  fsGroup: 1000
+  #supplementalGroups: 0
+  #override_server_ip: "10.10.10.10"
+  #participate_in_load_balancing: 0
+  #verify_guardium:
+    #cn: "my_collector_cn"
+    #ca_path: "/etc/guardium/guardium_ca.crt"
+  proxy:
+    debug: 0
+    #group_uuid: "9d2c34ab-e392-02fd1-872ae892ea94"
+    #num_workers: 5
+    #proxy_protocol: 0
+    #disconnect_on_invalid_certificate: false
+    #notify_on_invalid_certificate: false
+    #listen_port: 8888
+    #secret: estap-token
+    #csr:
+      #name: "db.example.com"
+      #country: "us"
+      #province: "massachusetts"
+      #city: "littleton"
+      #organization: "IBM"
+      #keylength: 2048
+  db:
+    host: "127.0.0.1"
+    port: 5432
+    type: "pgsql"
+  guardium:
+    host: "127.0.0.1"
+    #port: 16016
+    #connection_pool_size: 0
+    #num_main_thread: 1
+    #secondaries:
+      #s1:
+        #host: ""
+        #port: 16016
+        #connection_pool_size: 0
+        #num_main_thread: 1
+      #s2:
+        #host: ""
+        #port: 16016
+        #connection_pool_size: 0
+        #num_main_thread: 1
+      #s3:
+        #host: ""
+        #port: 16016
+        #connection_pool_size: 0
+        #num_main_thread: 1
+      #s4:
+        #host: ""
+        #port: 16016
+        #connection_pool_size: 0
+        #num_main_thread: 1
+      #s5:
+        #host: ""
+        #port: 16016
+        #connection_pool_size: 0
+        #num_main_thread: 1
+      #s6:
+        #host: ""
+        #port: 16016
+        #connection_pool_size: 0
+        #num_main_thread: 1
+      #s7:
+        #host: ""
+        #port: 16016
+        #connection_pool_size: 0
+        #num_main_thread: 1
+      #s8:
+        #host: ""
+        #port: 16016
+        #connection_pool_size: 0
+        #num_main_thread: 1
+      #s9:
+        #host: ""
+        #port: 16016
+        #connection_pool_size: 0
+        #num_main_thread: 1
+  livenessProbe:
+    command: "/usr/sbin/gproxy_live"
+    initialDelaySeconds: 0
+    periodSeconds: 10
+    failureThreshold: 4
+  readinessProbe:
+    command: "/usr/sbin/gproxy_ready"
+    initialDelaySeconds: 0
+    periodSeconds: 5
+    failureThreshold: 5
