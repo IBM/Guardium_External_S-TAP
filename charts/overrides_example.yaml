@@ -8,7 +8,7 @@
 global:
   # Registry location for the container image
   # Optional
-  #dockerRegistryPrefix: "docker.io/ibmcom/"
+  #dockerRegistryPrefix: "icr.io/guardium-insights/"
   
   # Container image name in repository
   # Optional
@@ -16,7 +16,7 @@ global:
 
   # Container image tag
   # Optional
-  #tag: "v11.3.0"
+  #tag: "v12.1"
 
   # Pull policy for container image
   # Optional
@@ -42,6 +42,22 @@ global:
   # Optional, default is "estap-secret-writer"
   #secretWriterServiceAccountName: "estap-secret-writer"
 
+  # With restrictive deployer permissions, it may not be possible to
+  # get roles, rolebindings, and serviceaccounts in kubernetes.  If
+  # the default secret needs to be created and the serviceaccount,
+  # role, and rolebinding already exist, uncomment these to prevent
+  # helm from trying to 'get' the objects, which may be prohibited
+  # by the user's role
+  # NB: if dontMakeServiceAccount is set to true, neither the Role
+  # nor the RoleBinding will be created, either.  if dontMakeRole
+  # is set to true, then the RoleBinding will not be created
+  # Default is to create serviceAccount, Role, and Rolebinding
+  # if they do not exist and, if they do, to inherit them into
+  # the deployment
+  #dontMakeServiceAccount: false
+  #dontMakeRole: false
+  #dontMakeRoleBinding: false
+
   # Persistent volume claim
   # - required to support persisting configuration changes from
   #   the collector after deployment
@@ -57,7 +73,21 @@ estap:
 
   # NodePort to expose
   # Optional, random port will be used when unspecified
+  # NB: Parameter is ignored when estap.route.name is
+  # specified
   #nodePort: 33000
+  
+  # Create an OpenShift route instead of a nodePort
+  # service
+  route:
+    # name is required when using a route.  It will be appended to
+    # the service name and will be the DNS endpoint for using E-STAP
+    #name:
+    tls:
+      # These parameters are optional and the default is to not
+      # terminate SSL and to do straight passthrough
+      #insecureEdgeTerminationPolicy: None
+      #termination: passthrough
   
   #service:
     # Optional, annotations to add to the service.  Typically used
@@ -68,6 +98,8 @@ estap:
       #service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: "ip"
     # Optional, external traffic policy for load balancer service
     #externalTrafficPolicy: Local
+    # Optional, internal traffic policy for load balancer service
+    #internalTrafficPolicy: Cluster
 
   # Number of replicas to deploy initially
   # Optional, default is 2

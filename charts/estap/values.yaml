@@ -3,9 +3,9 @@
 
 # Global Settings
 global:
-  dockerRegistryPrefix: "docker.io/ibmcom/"
+  dockerRegistryPrefix: "icr.io/guardium-insights/"
   image: "guardium_external_s-tap"
-  tag: "v11.4.0"
+  tag: "v12.1"
   imagePullPolicy: IfNotPresent
   #imagePullSecret: "docker-regcred"
   #secret: "estap-secret"
