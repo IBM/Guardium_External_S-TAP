@@ -5,7 +5,7 @@
 global:
   dockerRegistryPrefix: "icr.io/guardium-insights/"
   image: "guardium_external_s-tap"
-  tag: "v12.0.1"
+  tag: "v12.1"
   imagePullPolicy: IfNotPresent
   #imagePullSecret: "docker-regcred"
   #secret: "estap-secret"
