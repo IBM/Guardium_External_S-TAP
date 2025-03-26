@@ -98,6 +98,8 @@ estap:
       #service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: "ip"
     # Optional, external traffic policy for load balancer service
     #externalTrafficPolicy: Local
+    # Optional, a load balancer source range to allow traffic from
+    #loadBalancerSourceRanges: []
     # Optional, internal traffic policy for load balancer service
     #internalTrafficPolicy: Cluster
 
