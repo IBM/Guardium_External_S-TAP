@@ -25,8 +25,12 @@ metadata:
   {{- end }}
 {{- end }}
 spec:
+{{- if .Values.estap.route }}
 {{- if .Values.estap.route.name }}
   type: ClusterIP
+{{- else }}
+  type: LoadBalancer
+{{- end }}
 {{- else }}
   type: LoadBalancer
 {{- end }}
