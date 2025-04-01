@@ -79,11 +79,11 @@ estap:
   
   # Create an OpenShift route instead of a nodePort
   # service
-  route:
+  #route:
     # name is required when using a route.  It will be appended to
     # the service name and will be the DNS endpoint for using E-STAP
     #name:
-    tls:
+    # tls:
       # These parameters are optional and the default is to not
       # terminate SSL and to do straight passthrough
       #insecureEdgeTerminationPolicy: None
@@ -102,6 +102,18 @@ estap:
     #loadBalancerSourceRanges: []
     # Optional, internal traffic policy for load balancer service
     #internalTrafficPolicy: Cluster
+
+  # Optional, ingress to use with E-STAP.  Used to specify a load balancer
+  # to be used with AWS to avoid multiple NLBs being created
+  #ingress:
+    # Optional, annotations to specify for ingress
+    #annotations:
+      #alb.ingress.kubernetes.io/scheme: internet-facing
+      #alb.ingress.kubernetes.io/target-type: ip
+      #alb.ingress.kubernetes.io/load-balancer-name: YOUR_INGRESS_LB_NAME
+      #alb.ingress.kubernetes.io/group.name: YOUR_INGRESS_GROUP_NAME
+    #className: alb
+    #host: YOUR_DNS_HOST_NAME
 
   # Number of replicas to deploy initially
   # Optional, default is 2
