@@ -218,7 +218,7 @@ do_usage() {
 	println "\t                                          optional, can be set from collector after creation.  example \"1526\""
 	println "\t[--db-type <string>]                    - specify DB type for traffic that is being proxied"
 	println "\t                                          optional, can be set from collector after creation."
-	println "\t                                          must be one of \"oracle\", \"mssql\", \"sybase\", \"mongodb\", \"db2\", \"mysql\", \"memsql\", \"mariadb\", \"pgsql\", \"greenplumdb\", \"verticadb\", \"redis\", \"dynamodb\", \"el_search\", \"amazons3\", \"cockroach\", \"netezza\", \"hana\", \"snowflake\", \"trd\" or \"milvus\""
+	println "\t                                          must be one of \"oracle\", \"mssql\", \"sybase\", \"mongodb\", \"db2\", \"mysql\", \"memsql\", \"mariadb\", \"pgsql\", \"greenplumdb\", \"verticadb\", \"redis\", \"dynamodb\", \"el_search\", \"amazons3\", \"cockroach\", \"netezza\", \"hana\", \"snowflake\", \"trd\", \"couch\" or \"milvus\""
 	println "\t[--proxy-num-workers <#>]               - number of worker threads for the guardium external s-tap to use"
 	println "\t                                          optional, can be set from collector after creation.  example \"5\""
 	println "\t[--proxy-protocol <#>]                  - proxy protocol is enabled for the DB traffic (0: no, 1: protocol version 1, 2: protocol version 2)"
@@ -921,7 +921,7 @@ mark_error() {
 }
 
 print_valid_db_types() {
-	echo "Valid DB types are \"oracle\", \"mssql\", \"sybase\", \"mongodb\", \"db2\", \"mysql\", \"memsql\", \"mariadb\", \"pgsql\", \"greenplumdb\", \"verticadb\", \"redis\", \"dynamodb\", \"el_search\", \"amazons3\", \"cockroach\", \"netezza\", \"hana\", \"snowflake\", \"trd\", \"milvus\""
+	echo "Valid DB types are \"oracle\", \"mssql\", \"sybase\", \"mongodb\", \"db2\", \"mysql\", \"memsql\", \"mariadb\", \"pgsql\", \"greenplumdb\", \"verticadb\", \"redis\", \"dynamodb\", \"el_search\", \"amazons3\", \"cockroach\", \"netezza\", \"hana\", \"snowflake\", \"trd\", \"milvus\", \"couch\""
 }
 
 valid_db_type() {
