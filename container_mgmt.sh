@@ -948,6 +948,7 @@ valid_db_type() {
 		|| [ "$1" = "snowflake" ] \
 		|| [ "$1" = "trd" ] \
 		|| [ "$1" = "milvus" ] \
+		|| [ "$1" = "couch" ] \
 	; then
 		VALID_TYPE=0
 	fi
@@ -959,7 +960,6 @@ valid_db_type() {
 #		|| [ "$1" = "cassandra" ] \
 #		|| [ "$1" = "asterdb" ] \
 #		|| [ "$1" = "hana" ] \
-#		|| [ "$1" = "couch" ] \
 #		|| [ "$1" = "hive" ] \
 #		|| [ "$1" = "accumolo" ] \
 #		|| [ "$1" = "impala" ] \
