@@ -949,6 +949,7 @@ valid_db_type() {
 		|| [ "$1" = "trd" ] \
 		|| [ "$1" = "milvus" ] \
 		|| [ "$1" = "couch" ] \
+		|| [ "$1" = "neo4j" ] \
 	; then
 		VALID_TYPE=0
 	fi
@@ -967,7 +968,6 @@ valid_db_type() {
 #		|| [ "$1" = "webhdfs" ] \
 #		|| [ "$1" = "solr" ] \
 #		|| [ "$1" = "couchbase" ] \
-#		|| [ "$1" = "neo4j" ] \
 	return $VALID_TYPE
 }
 
