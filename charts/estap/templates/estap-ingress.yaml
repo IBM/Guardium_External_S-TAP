@@ -21,8 +21,8 @@ spec:
   ingressClassName: {{ .Values.estap.ingress.className }}
   rules:
   - host: {{ .Values.estap.ingress.host }}
-  - http:
-    paths:
+    http:
+      paths:
       - path: /
         pathType: Prefix
         backend:
