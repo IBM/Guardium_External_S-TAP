@@ -1,4 +1,5 @@
 # vim: ts=2:sw=2:et
+{{- if .Values.estap.route }}
 {{- if .Values.estap.route.name }}
 apiVersion: route.openshift.io/v1
 kind: Route
@@ -36,4 +37,5 @@ spec:
     name: {{ include "common.name" . }}-lb
     weight: 100
   wildcardPolicy: None
+{{- end }}
 {{- end }}
