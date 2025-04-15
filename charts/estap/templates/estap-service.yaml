@@ -26,13 +26,21 @@ metadata:
 {{- end }}
 spec:
 {{- if .Values.estap.route }}
-{{- if .Values.estap.route.name }}
+  {{- if .Values.estap.route.name }}
   type: ClusterIP
-{{- else }}
+  {{- else }}
+  {{- if .Values.estap.ingress }}
+  type: NodePort
+  {{- else }}
   type: LoadBalancer
-{{- end }}
+  {{- end }}
+  {{- end }}
 {{- else }}
+  {{- if .Values.estap.ingress }}
+  type: NodePort
+  {{- else }}
   type: LoadBalancer
+  {{- end }}
 {{- end }}
   ports:
   - protocol: TCP

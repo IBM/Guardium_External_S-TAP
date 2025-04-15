@@ -1,0 +1,33 @@
+# vim: ts=2:sw=2:et
+{{- if .Values.estap.ingress }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  namespace: {{ .Release.Namespace }}
+  name: {{ include "common.name" . }}-ingress
+  labels:
+    component: {{ include "common.name" . }}
+    app: {{ include "common.name" . }}
+    {{- include "common.labels" . | nindent 4 }}
+{{- if .Values.estap.ingress }}
+  {{- if .Values.estap.ingress.annotations }}
+  annotations:
+    {{- with .Values.estap.ingress.annotations }}
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- end }}
+{{- end }}
+spec:
+  ingressClassName: {{ .Values.estap.ingress.className }}
+  rules:
+  - host: {{ .Values.estap.ingress.host }}
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+            service:
+              name: {{ include "common.name" . }}-lb
+              port:
+                number: {{ include "estap-deploy.estap.proxy.listen_port" . }}
+{{- end }}
