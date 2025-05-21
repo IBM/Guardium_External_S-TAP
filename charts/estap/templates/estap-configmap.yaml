@@ -32,6 +32,9 @@ data:
   STAP_CONFIG_PROXY_DISCONNECT_ON_INVALID_CERTIFICATE: {{ include "estap-deploy.estap.proxy.disconnect_on_invalid_certificate" . | quote }}
   STAP_CONFIG_PROXY_NOTIFY_ON_INVALID_CERTIFICATE: {{ include "estap-deploy.estap.proxy.notify_on_invalid_certificate" . | quote }}
   STAP_CONFIG_PROXY_LISTEN_PORT: {{ include "estap-deploy.estap.proxy.listen_port" . | quote }}
+{{- if eq (int .Values.estap.livenessProbe.disableBackendLivenessProbe) 1 }}
+  NO_BACKEND_LIVENESS_PROBE: "1"
+{{- end }}
 {{- if .Values.estap.proxy }}
   {{- if .Values.estap.proxy.detect_ssl_within_x_packets }}
   STAP_CONFIG_PROXY_DETECT_SSL_WITHIN_X_PACKETS: {{ .Values.estap.proxy.detect_ssl_within_x_packets | quote }}

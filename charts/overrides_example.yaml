@@ -293,6 +293,8 @@ estap:
     #initialDelaySeconds: 0
     #periodSeconds: 10
     #failureThreshold: 4
+    #disableBackendLivenessProbe: 1
+
 
   # Readiness probe script to use
   # Optional, not recommended to set.
