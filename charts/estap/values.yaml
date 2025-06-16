@@ -22,7 +22,7 @@ estap:
     memory: 512Mi
   limits:
     cpu: 500m
-    memory: 756Mi
+    memory: 2096Mi
   uid: 1000
   fsGroup: 1000
   #supplementalGroups: 0

@@ -150,7 +150,7 @@ readOnlyRootFilesystem: true
 {{- end }}
 
 {{- define "estap-deploy.estap.limits.memory" }}
-{{- if .Values.estap.limits }}{{ .Values.estap.limits.memory | default "756Mi" }}{{- else }}"756Mi"{{- end }}
+{{- if .Values.estap.limits }}{{ .Values.estap.limits.memory | default "2096Mi" }}{{- else }}"2096Mi"{{- end }}
 {{- end }}
 
 {{- define "estap-deploy.global.secretWriterServiceAccountName" }}
