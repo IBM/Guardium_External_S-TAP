@@ -83,11 +83,15 @@ estap:
     # name is required when using a route.  It will be appended to
     # the service name and will be the DNS endpoint for using E-STAP
     #name:
-    # tls:
+    #tls:
       # These parameters are optional and the default is to not
       # terminate SSL and to do straight passthrough
       #insecureEdgeTerminationPolicy: None
       #termination: passthrough
+    #annotations:
+      # Whatever you put under here is going to be added to the annotations
+      # and is dependent on what is implementing the route
+      #haproxy.router.openshift.io/timeout: 90s
   
   #service:
     # Optional, annotations to add to the service.  Typically used
