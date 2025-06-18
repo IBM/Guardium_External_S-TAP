@@ -54,6 +54,8 @@ capabilities:
   - ALL
 privileged: false
 readOnlyRootFilesystem: true
+seccompProfile:
+  type: RuntimeDefault
 {{- end }}
 
 {{- define "estap-deploy.estap.imagePullPolicy" }}
