@@ -27,7 +27,15 @@ global:
   #imagePullSecret: "docker-regcred"
 
   # Kubernetes secret
-  # - can contain static credentials (tls.crt and tls.key)
+  # - can contain static credentials
+  #   - tls.crt and tls.key are the certificate/key pair that e-stap
+  #     presents to both the client and the service
+  #   - client.crt and client.key are the certificate/key pair that
+  #     e-stap presents /to/ the server /as/ a client
+  #   - server.crt and server.key are the certificate/key pair that
+  #     e-stap presents /to/ a client /as/ the server
+  #   - ca.pem is the root CA that signed the e-stap certificate(s)
+  #   - ca_bundle.pem is the CA bundle used for verifying certificates
   # - can contain multiple secret tokens which are used to
   #   - pull a specific certificate and key from the collector
   #   - send automatically generated CSRs to the collector to

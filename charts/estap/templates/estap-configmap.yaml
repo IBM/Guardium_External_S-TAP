@@ -66,9 +66,17 @@ data:
         {{- end }}
       {{- else }}
   STAP_CONFIG_PROXY_PEM_PATH: "/tmp/metastore/estap.pem"
+  STAP_CONFIG_PROXY_SERVER_PEM_PATH: "/tmp/metastore/estap_server.pem"
+  STAP_CONFIG_PROXY_CLIENT_PEM_PATH: "/tmp/metastore/estap_client.pem"
+  STAP_CONFIG_ROOT_CA_PEM_PATH: "/tmp/metastore/ca.pem"
+  STAP_CONFIG_CUSTOM_CA_BUNDL_PEM_PATH: "/tmp/metastore/ca_bundle.pem"
       {{- end }}
     {{- else }}
   STAP_CONFIG_PROXY_PEM_PATH: "/tmp/metastore/estap.pem"
+  STAP_CONFIG_PROXY_SERVER_PEM_PATH: "/tmp/metastore/estap_server.pem"
+  STAP_CONFIG_PROXY_CLIENT_PEM_PATH: "/tmp/metastore/estap_client.pem"
+  STAP_CONFIG_ROOT_CA_PEM_PATH: "/tmp/metastore/ca.pem"
+  STAP_CONFIG_CUSTOM_CA_BUNDL_PEM_PATH: "/tmp/metastore/ca_bundle.pem"
     {{- end }}
   {{- end }}
 {{- end }}
