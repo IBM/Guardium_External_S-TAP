@@ -3,7 +3,7 @@
 
 # Global Settings
 global:
-  dockerRegistryPrefix: "icr.io/guardium-insights/"
+  dockerRegistryPrefix: "icr.io/guardium/"
   image: "guardium_external_s-tap"
   tag: "v12.1"
   imagePullPolicy: IfNotPresent

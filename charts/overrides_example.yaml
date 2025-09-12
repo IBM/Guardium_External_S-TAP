@@ -8,7 +8,7 @@
 global:
   # Registry location for the container image
   # Optional
-  #dockerRegistryPrefix: "icr.io/guardium-insights/"
+  #dockerRegistryPrefix: "icr.io/guardium/"
   
   # Container image name in repository
   # Optional
