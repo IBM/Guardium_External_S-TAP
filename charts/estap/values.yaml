@@ -3,7 +3,7 @@
 
 # Global Settings
 global:
-  dockerRegistryPrefix: "icr.io/guardium-insights/"
+  dockerRegistryPrefix: "icr.io/guardium/"
   image: "guardium_external_s-tap"
   tag: "v12.1"
   imagePullPolicy: IfNotPresent
@@ -22,7 +22,7 @@ estap:
     memory: 512Mi
   limits:
     cpu: 500m
-    memory: 756Mi
+    memory: 2096Mi
   uid: 1000
   fsGroup: 1000
   #supplementalGroups: 0
