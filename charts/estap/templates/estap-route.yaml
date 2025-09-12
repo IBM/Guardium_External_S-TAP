@@ -31,6 +31,12 @@ spec:
     termination: {{ .Values.estap.route.tls.termination }}
 {{- end }}
 {{- end }}
+{{- if .Values.estap.route.annotations }}
+  annotations:
+  {{- with .Values.estap.route.annotations }}
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end}}
 {{- end }}
   to:
     kind: Service

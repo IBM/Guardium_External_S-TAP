@@ -89,7 +89,7 @@ spec:
           volumeMounts:
           - mountPath: /tmp/metastore
             name: metastore-volume
-          image: icr.io/guardium-insights/guardium_external_s-tap:v12.1
+          image: icr.io/guardium/guardium_external_s-tap:v12.1
           args: ['gpctl genca > /tmp/metastore/ca.pem && gpctl gen_csr && mv /var/log/gp/key.tmp.pem /tmp/metastore/tls.key && gpctl -A/tmp/metastore/ca.pem -R/var/log/gp/csr.tmp.pem sign_csr > /tmp/metastore/tls.crt && rm -f /var/log/gp/csr.tmp.pem' ]
           command:
           - /bin/sh
@@ -100,7 +100,7 @@ spec:
           volumeMounts:
           - mountPath: /tmp/metastore
             name: metastore-volume
-          image: icr.io/guardium-insights/guardium_external_s-tap:v12.1
+          image: icr.io/guardium/guardium_external_s-tap:v12.1
           args: ["env && kubectl create secret generic estap-secret --from-file=ca.pem=/tmp/metastore/ca.pem --from-file=tls.key=/tmp/metastore/tls.key --from-file=tls.crt=/tmp/metastore/tls.crt"]
           command:
           - /bin/sh

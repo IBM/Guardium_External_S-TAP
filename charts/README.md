@@ -16,11 +16,11 @@ helm upgrade estap ./estap
 Certificates can be regenerated (while keeping the same CA) with...
 helm upgrade --set updateSecret=true estap ./estap
 
-Note: The charts are also available at icr.io/guardium-insights/guardium_external_s-tap:charts_master
+Note: The charts are also available at icr.io/guardium/guardium_external_s-tap:charts_master
 If you cannot pull from github but can pull images from icr.io, pull that image
 and create a container (it's a scratch image, it will not run).  Once the pod is created, copy charts.tgz from the pod and extract them
 ```
-podman create --name estap-charts icr.io/guardium-insights/guardium_external_s-tap:charts_master
+podman create --name estap-charts icr.io/guardium/guardium_external_s-tap:charts_master
 podman cp estap-charts:/charts.tgz .
 podman rm -f estap-charts
 tar xzf charts.tgz

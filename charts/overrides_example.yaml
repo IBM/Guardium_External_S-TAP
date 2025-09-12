@@ -8,7 +8,7 @@
 global:
   # Registry location for the container image
   # Optional
-  #dockerRegistryPrefix: "icr.io/guardium-insights/"
+  #dockerRegistryPrefix: "icr.io/guardium/"
   
   # Container image name in repository
   # Optional
@@ -27,7 +27,15 @@ global:
   #imagePullSecret: "docker-regcred"
 
   # Kubernetes secret
-  # - can contain static credentials (tls.crt and tls.key)
+  # - can contain static credentials
+  #   - tls.crt and tls.key are the certificate/key pair that e-stap
+  #     presents to both the client and the service
+  #   - client.crt and client.key are the certificate/key pair that
+  #     e-stap presents /to/ the server /as/ a client
+  #   - server.crt and server.key are the certificate/key pair that
+  #     e-stap presents /to/ a client /as/ the server
+  #   - ca.pem is the root CA that signed the e-stap certificate(s)
+  #   - ca_bundle.pem is the CA bundle used for verifying certificates
   # - can contain multiple secret tokens which are used to
   #   - pull a specific certificate and key from the collector
   #   - send automatically generated CSRs to the collector to
@@ -83,11 +91,15 @@ estap:
     # name is required when using a route.  It will be appended to
     # the service name and will be the DNS endpoint for using E-STAP
     #name:
-    # tls:
+    #tls:
       # These parameters are optional and the default is to not
       # terminate SSL and to do straight passthrough
       #insecureEdgeTerminationPolicy: None
       #termination: passthrough
+    #annotations:
+      # Whatever you put under here is going to be added to the annotations
+      # and is dependent on what is implementing the route
+      #haproxy.router.openshift.io/timeout: 90s
   
   #service:
     # Optional, annotations to add to the service.  Typically used
@@ -130,7 +142,7 @@ estap:
     #memory: 512Mi
   #limits:
     #cpu: 500m
-    #memory: 756Mi
+    #memory: 2096Mi
 
   # UID for container user
   # Optional, default is 1000.  If changed, 0 will be added automatically
@@ -305,6 +317,8 @@ estap:
     #initialDelaySeconds: 0
     #periodSeconds: 10
     #failureThreshold: 4
+    #disableBackendLivenessProbe: 1
+
 
   # Readiness probe script to use
   # Optional, not recommended to set.
