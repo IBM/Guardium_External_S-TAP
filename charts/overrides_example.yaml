@@ -84,7 +84,13 @@ estap:
   # NB: Parameter is ignored when estap.route.name is
   # specified
   #nodePort: 33000
-  
+ 
+  # NodePort for health check (port 8080)
+  # Optional, random port will be used when unspecified
+  # This creates a separate NodePort service for health checks only
+  # Valid range: 30000-32767
+  #healthCheckNodePort: 32080
+ 
   # Create an OpenShift route instead of a nodePort
   # service
   #route:
@@ -108,6 +114,8 @@ estap:
     #annotations:
       #service.beta.kubernetes.io/aws-load-balancer-type: "external"
       #service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: "ip"
+      # The hook updates the target group to use port 8080's NodePort
+      #service.beta.kubernetes.io/aws-load-balancer-healthcheck-port: "8080"
     # Optional, external traffic policy for load balancer service
     #externalTrafficPolicy: Local
     # Optional, a load balancer source range to allow traffic from

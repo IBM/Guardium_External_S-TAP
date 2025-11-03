@@ -16,14 +16,16 @@ metadata:
     app.kubernetes.io/managed-by: {{ .Release.Service }}
     app.kubernetes.io/instance: {{ .Release.Name }}
     app.kubernetes.io/part-of: {{ include "common.name" . }}
+  annotations:
 {{- if .Values.estap.service }}
   {{- if .Values.estap.service.annotations }}
-  annotations:
     {{- with .Values.estap.service.annotations }}
       {{- toYaml . | nindent 4 }}
     {{- end }}
   {{- end }}
 {{- end }}
+    # Configure NLB to use port 8080 for health checks (maps to NodePort 32080)
+    service.beta.kubernetes.io/aws-load-balancer-healthcheck-port: "8080"
 spec:
 {{- if .Values.estap.route }}
   {{- if .Values.estap.route.name }}

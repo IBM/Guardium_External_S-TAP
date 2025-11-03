@@ -1,0 +1,31 @@
+# vim: ts=2:sw=2:et
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: {{ .Release.Namespace }}
+  name: {{ include "common.name" . }}-health
+  labels:
+    serviceType : NodePort
+    app: {{ include "common.name" . }}
+    component: {{ include "common.name" . }}
+    chart: "{{ .Chart.Name }}"
+    heritage: {{ .Release.Service }}
+    release: {{ .Release.Name }}
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    helm.sh/chart: {{ .Chart.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: {{ include "common.name" . }}
+spec:
+  type: NodePort
+  ports:
+  - protocol: TCP
+    name: {{ include "common.name" . }}-health
+    port: 8080
+    targetPort: 8080
+{{- if .Values.estap.healthCheckNodePort }}
+    nodePort: {{ .Values.estap.healthCheckNodePort }}
+{{- end }}
+  selector:
+    component: {{ include "common.name" . }}
+    tier: backend
