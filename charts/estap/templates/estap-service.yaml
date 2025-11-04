@@ -24,8 +24,10 @@ metadata:
     {{- end }}
   {{- end }}
 {{- end }}
-    # Configure NLB to use port 8080 for health checks (maps to NodePort 32080)
-    service.beta.kubernetes.io/aws-load-balancer-healthcheck-port: "8080"
+{{- if .Values.estap.healthCheckNodePort }}
+    # Configure NLB to use the healthCheckNodePort for health checks
+    service.beta.kubernetes.io/aws-load-balancer-healthcheck-port: "{{ .Values.estap.healthCheckNodePort }}"
+{{- end }}
 spec:
 {{- if .Values.estap.route }}
   {{- if .Values.estap.route.name }}
