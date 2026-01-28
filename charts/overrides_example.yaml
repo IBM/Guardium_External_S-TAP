@@ -211,6 +211,14 @@ estap:
     # Optional, default is 8888.  Must be a non-privileged port.
     #listen_port: 8888
 
+    # Limit SSL detection to first X packets of a session
+    # -1: unlimited detection (default)
+    #  0: no SSL detection (all passthrough)
+    # >0: detect SSL only within first X packets
+    # Optional, default is -1
+    # Recommended for Azure Redis and similar services: 10
+    #detect_ssl_within_x_packets: -1
+
     # Key for token stored in global.secret to use when referencing
     # signed or signing certificates on the collector
     # Optional, default is to not use a token
