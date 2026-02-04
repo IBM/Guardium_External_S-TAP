@@ -31,7 +31,7 @@ spec:
       - name: dshm
         emptyDir: 
           medium: Memory
-          sizeLimit: 500Mi
+          sizeLimit: 800Mi
 {{- if .Values.global }}
   {{- if .Values.global.secret }}
       - name: estap-secret
