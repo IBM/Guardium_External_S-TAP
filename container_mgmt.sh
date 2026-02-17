@@ -19,7 +19,7 @@
 TRANSLATE_SPECIAL_CHARS=1
 ECHO_DASH_N_WORKS=0
 PRINTF_IS_PROVIDED=0
-
+SUPPORTED_DB_LIST="\"oracle\", \"mssql\", \"sybase\", \"mongodb\", \"db2\", \"mysql\", \"memsql\", \"mariadb\", \"pgsql\", \"greenplumdb\", \"verticadb\", \"redis\", \"dynamodb\", \"el_search\", \"amazons3\", \"cockroach\", \"netezza\", \"hana\", \"snowflake\", \"trd\", \"milvus\", \"couch\", \"yugabyte\", \"oceanbase\", \"open_search\", \"tigergraph\", \"marklogic\", \"milvus\""
 A="1\n2"
 
 if [ `echo "$A" | wc -l | awk '{ gsub(/[ \t\n]+/, "", $0); printf $0; }'` -eq 2 ]; then
@@ -218,7 +218,7 @@ do_usage() {
 	println "\t                                          optional, can be set from collector after creation.  example \"1526\""
 	println "\t[--db-type <string>]                    - specify DB type for traffic that is being proxied"
 	println "\t                                          optional, can be set from collector after creation."
-	println "\t                                          must be one of \"oracle\", \"mssql\", \"sybase\", \"mongodb\", \"db2\", \"mysql\", \"memsql\", \"mariadb\", \"pgsql\", \"greenplumdb\", \"verticadb\", \"redis\", \"dynamodb\", \"el_search\", \"amazons3\", \"cockroach\", \"netezza\", \"hana\", \"snowflake\", \"trd\", \"couch\" or \"milvus\""
+	println "\t                                          must be one of $SUPPORTED_DB_LIST"
 	println "\t[--proxy-num-workers <#>]               - number of worker threads for the guardium external s-tap to use"
 	println "\t                                          optional, can be set from collector after creation.  example \"5\""
 	println "\t[--proxy-protocol <#>]                  - proxy protocol is enabled for the DB traffic (0: no, 1: protocol version 1, 2: protocol version 2)"
@@ -927,53 +927,16 @@ mark_error() {
 }
 
 print_valid_db_types() {
-	echo "Valid DB types are \"oracle\", \"mssql\", \"sybase\", \"mongodb\", \"db2\", \"mysql\", \"memsql\", \"mariadb\", \"pgsql\", \"greenplumdb\", \"verticadb\", \"redis\", \"dynamodb\", \"el_search\", \"amazons3\", \"cockroach\", \"netezza\", \"hana\", \"snowflake\", \"trd\", \"milvus\", \"couch\""
+	echo "Valid DB types are $SUPPORTED_DB_LIST"
 }
 
 valid_db_type() {
 	VALID_TYPE=1
-	if [ "$1" = "oracle" ] \
-		|| [ "$1" = "mssql" ] \
-		|| [ "$1" = "sybase" ] \
-		|| [ "$1" = "mongodb" ] \
-		|| [ "$1" = "db2" ] \
-		|| [ "$1" = "mysql" ] \
-		|| [ "$1" = "memsql" ] \
-		|| [ "$1" = "mariadb" ] \
-		|| [ "$1" = "pgsql" ] \
-		|| [ "$1" = "greenplumdb" ] \
-		|| [ "$1" = "verticadb" ] \
-		|| [ "$1" = "redis" ] \
-		|| [ "$1" = "dynamodb" ] \
-		|| [ "$1" = "el_search" ] \
-		|| [ "$1" = "bigquery" ] \
-		|| [ "$1" = "amazons3" ] \
-		|| [ "$1" = "cockroach" ] \
-		|| [ "$1" = "netezza" ] \
-		|| [ "$1" = "hana" ] \
-		|| [ "$1" = "snowflake" ] \
-		|| [ "$1" = "trd" ] \
-		|| [ "$1" = "milvus" ] \
-		|| [ "$1" = "couch" ] \
-		|| [ "$1" = "neo4j" ] \
-	; then
-		VALID_TYPE=0
-	fi
-		# Currently unsupported marks
-#		|| [ "$1" = "infx" ] \
-#		|| [ "$1" = "teradata" ] \
-#		|| [ "$1" = "netezza" ] \
-#		|| [ "$1" = "hadoop" ] \
-#		|| [ "$1" = "cassandra" ] \
-#		|| [ "$1" = "asterdb" ] \
-#		|| [ "$1" = "hana" ] \
-#		|| [ "$1" = "hive" ] \
-#		|| [ "$1" = "accumolo" ] \
-#		|| [ "$1" = "impala" ] \
-#		|| [ "$1" = "hue" ] \
-#		|| [ "$1" = "webhdfs" ] \
-#		|| [ "$1" = "solr" ] \
-#		|| [ "$1" = "couchbase" ] \
+	for i in `echo $SUPPORTED_DB_LIST | tr '",' '  '`; do
+		if [ "$1" = "$i" ]; then
+			VALID_TYPE=0
+		fi
+	done
 	return $VALID_TYPE
 }
 
