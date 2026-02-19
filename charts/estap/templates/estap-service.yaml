@@ -25,22 +25,14 @@ metadata:
   {{- end }}
 {{- end }}
 spec:
-{{- if .Values.estap.route }}
-  {{- if .Values.estap.route.name }}
-  type: ClusterIP
+{{- if .Values.estap.service }}
+  {{- if .Values.estap.service.type }}
+  type: {{ .Values.estap.service.type }}
   {{- else }}
-  {{- if .Values.estap.ingress }}
-  type: NodePort
-  {{- else }}
-  type: LoadBalancer
-  {{- end }}
+  type: {{ include "estap-svc.typeAuto" . }}
   {{- end }}
 {{- else }}
-  {{- if .Values.estap.ingress }}
-  type: NodePort
-  {{- else }}
-  type: LoadBalancer
-  {{- end }}
+  type: {{ include "estap-svc.typeAuto" . }}
 {{- end }}
   ports:
   - protocol: TCP
