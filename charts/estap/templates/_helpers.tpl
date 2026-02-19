@@ -158,3 +158,7 @@ seccompProfile:
 {{- define "estap-deploy.global.secretWriterServiceAccountName" }}
 {{- .Values.global.secretWriterServiceAccountName | default "estap-secret-writer" }}
 {{- end }}
+
+{{- define "estap-svc.typeAuto" }}
+{{- if .Values.estap.route }} {{- if .Values.estap.route.name }} ClusterIP {{- else }} {{- if .Values.estap.ingress }} NodePort {{- else }} LoadBalancer {{- end }} {{- end }} {{- else }} {{- if .Values.estap.ingress }} NodePort {{- else }} LoadBalancer {{- end }} {{- end }}
+{{- end }}

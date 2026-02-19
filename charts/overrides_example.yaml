@@ -102,6 +102,10 @@ estap:
       #haproxy.router.openshift.io/timeout: 90s
   
   #service:
+    # Type of the service to use, one of LoadBalancer, NodePort, ClusterIP
+    # If parameter is not specified, then it will be ClusterIP if route.name
+    # is specified, NodePort if ingress is specified, or LoadBalancer
+    #type: LoadBalancer
     # Optional, annotations to add to the service.  Typically used
     # to link with Kubernetes provider's load balancer  
     # Annotations need to be string encoded.
