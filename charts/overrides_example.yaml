@@ -184,6 +184,10 @@ estap:
     #cn: "my_collector_cn"
     #ca_path: "/etc/guardium/guardium_ca.crt"
 
+  # If this deployment is for Edge or not
+  # Required
+  using_edge: 0
+
   #proxy:
     # For debugging purposes only
     # Optional, not recommended to set
