@@ -31,6 +31,7 @@ estap:
   #verify_guardium:
     #cn: "my_collector_cn"
     #ca_path: "/etc/guardium/guardium_ca.crt"
+  using_edge: 0
   proxy:
     debug: 0
     #group_uuid: "9d2c34ab-e392-02fd1-872ae892ea94"
