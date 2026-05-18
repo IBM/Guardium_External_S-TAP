@@ -19,7 +19,7 @@
 TRANSLATE_SPECIAL_CHARS=1
 ECHO_DASH_N_WORKS=0
 PRINTF_IS_PROVIDED=0
-SUPPORTED_DB_LIST="\"oracle\", \"mssql\", \"sybase\", \"mongodb\", \"db2\", \"mysql\", \"memsql\", \"mariadb\", \"pgsql\", \"greenplumdb\", \"verticadb\", \"redis\", \"dynamodb\", \"el_search\", \"amazons3\", \"cockroach\", \"netezza\", \"hana\", \"snowflake\", \"trd\", \"milvus\", \"couch\", \"yugabyte\", \"oceanbase\", \"open_search\", \"tigergraph\", \"marklogic\", \"milvus\""
+SUPPORTED_DB_LIST="\"oracle\", \"mssql\", \"sybase\", \"mongodb\", \"db2\", \"mysql\", \"memsql\", \"mariadb\", \"pgsql\", \"greenplumdb\", \"verticadb\", \"redis\", \"dynamodb\", \"el_search\", \"amazons3\", \"cockroach\", \"netezza\", \"hana\", \"snowflake\", \"trd\", \"milvus\", \"couch\", \"yugabyte\", \"oceanbase\", \"open_search\", \"tigergraph\", \"marklogic\", \"milvus\", \"mcp\""
 A="1\n2"
 
 if [ `echo "$A" | wc -l | awk '{ gsub(/[ \t\n]+/, "", $0); printf $0; }'` -eq 2 ]; then
