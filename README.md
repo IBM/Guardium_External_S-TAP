@@ -49,7 +49,7 @@ Since Guardium External S-TAP needs some information about your environment and 
 	                                          optional, can be set from collector after creation.  example "1526"
 	[--db-type <string>]                    - specify DB type for traffic that is being proxied
 	                                          optional, can be set from collector after creation.
-	                                          must be one of "oracle", "mssql", "sybase", "mongodb", "db2", "mysql", "memsql", "mariadb", "pgsql", "greenplumdb", or "verticadb"
+	                                          must be one of "oracle", "mssql", "sybase", "mongodb", "db2", "mysql", "memsql", "mariadb", "pgsql", "greenplumdb", "verticadb", or "mcp"
 	[--proxy-num-workers <#>]               - number of worker threads for the guardium external s-tap to use
 	                                          optional, can be set from collector after creation.  example "5"
 	[--proxy-protocol <#>]                  - proxy protocol is enabled for the DB traffic (0: no, 1: protocol version 1)
