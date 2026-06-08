@@ -22,7 +22,7 @@ data:
 {{- end }}
   STAP_CONFIG_PARTICIPATE_IN_LOAD_BALANCING: {{ include "estap-deploy.estap.participate_in_load_balancing" . | quote }}
 {{- if .Values.estap.using_edge }}
-  STAP_CONFIG_USING_EDGE: {{ .Values.estap.using_edge }}
+  STAP_CONFIG_USING_EDGE: {{ .Values.estap.using_edge | quote }}
 {{- else }}
   STAP_CONFIG_USING_EDGE: "0"
 {{- end }}
