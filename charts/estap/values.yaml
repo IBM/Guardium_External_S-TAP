@@ -55,52 +55,62 @@ estap:
   guardium:
     host: "127.0.0.1"
     #port: 16016
+    #tls_port: 16018
     #connection_pool_size: 0
     #num_main_thread: 1
     #secondaries:
       #s1:
         #host: ""
         #port: 16016
+        #tls_port: 16018
         #connection_pool_size: 0
         #num_main_thread: 1
       #s2:
         #host: ""
         #port: 16016
+        #tls_port: 16018
         #connection_pool_size: 0
         #num_main_thread: 1
       #s3:
         #host: ""
         #port: 16016
+        #tls_port: 16018
         #connection_pool_size: 0
         #num_main_thread: 1
       #s4:
         #host: ""
         #port: 16016
+        #tls_port: 16018
         #connection_pool_size: 0
         #num_main_thread: 1
       #s5:
         #host: ""
         #port: 16016
+        #tls_port: 16018
         #connection_pool_size: 0
         #num_main_thread: 1
       #s6:
         #host: ""
         #port: 16016
+        #tls_port: 16018
         #connection_pool_size: 0
         #num_main_thread: 1
       #s7:
         #host: ""
         #port: 16016
+        #tls_port: 16018
         #connection_pool_size: 0
         #num_main_thread: 1
       #s8:
         #host: ""
         #port: 16016
+        #tls_port: 16018
         #connection_pool_size: 0
         #num_main_thread: 1
       #s9:
         #host: ""
         #port: 16016
+        #tls_port: 16018
         #connection_pool_size: 0
         #num_main_thread: 1
   livenessProbe:

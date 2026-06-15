@@ -93,6 +93,9 @@ data:
 {{- if .Values.estap.guardium.port }}
   STAP_CONFIG_SQLGUARD_0_SQLGUARD_PORT: {{ .Values.estap.guardium.port | quote }}
 {{- end }}
+{{- if .Values.estap.guardium.tls_port }}
+  STAP_CONFIG_SQLGUARD_0_SQLGUARD_TLS_PORT: {{ .Values.estap.guardium.tls_port | quote }}
+{{- end }}
 {{- if .Values.estap.guardium.connection_pool_size }}
   STAP_CONFIG_SQLGUARD_0_CONNECTION_POOL_SIZE: {{ .Values.estap.guardium.connection_pool_size | quote }}
 {{- end }}
@@ -110,6 +113,9 @@ data:
             {{- if .port}}
   STAP_CONFIG_SQLGUARD_1_SQLGUARD_PORT: {{ .port | quote }}
             {{- end }}
+            {{- if .tls_port}}
+  STAP_CONFIG_SQLGUARD_1_SQLGUARD_TLS_PORT: {{ .tls_port | quote }}
+            {{- end }}
             {{- if .connection_pool_size}}
   STAP_CONFIG_SQLGUARD_1_CONNECTION_POOL_SIZE: {{ .connection_pool_size | quote }}
             {{- end }}
@@ -125,6 +131,9 @@ data:
   STAP_CONFIG_SQLGUARD_2_PRIMARY: "3"
               {{- if .port}}
   STAP_CONFIG_SQLGUARD_2_SQLGUARD_PORT: {{ .port | quote }}
+              {{- end }}
+              {{- if .tls_port}}
+  STAP_CONFIG_SQLGUARD_2_SQLGUARD_TLS_PORT: {{ .tls_port | quote }}
               {{- end }}
               {{- if .connection_pool_size}}
   STAP_CONFIG_SQLGUARD_2_CONNECTION_POOL_SIZE: {{ .connection_pool_size | quote }}
@@ -142,6 +151,9 @@ data:
                 {{- if .port}}
   STAP_CONFIG_SQLGUARD_3_SQLGUARD_PORT: {{ .port | quote }}
                 {{- end }}
+                {{- if .tls_port}}
+  STAP_CONFIG_SQLGUARD_3_SQLGUARD_TLS_PORT: {{ .tls_port | quote }}
+                {{- end }}
                 {{- if .connection_pool_size}}
   STAP_CONFIG_SQLGUARD_3_CONNECTION_POOL_SIZE: {{ .connection_pool_size | quote }}
                 {{- end }}
@@ -157,6 +169,9 @@ data:
   STAP_CONFIG_SQLGUARD_4_PRIMARY: "5"
                   {{- if .port}}
   STAP_CONFIG_SQLGUARD_4_SQLGUARD_PORT: {{ .port | quote }}
+                  {{- end }}
+                  {{- if .tls_port}}
+  STAP_CONFIG_SQLGUARD_4_SQLGUARD_TLS_PORT: {{ .tls_port | quote }}
                   {{- end }}
                   {{- if .connection_pool_size}}
   STAP_CONFIG_SQLGUARD_4_CONNECTION_POOL_SIZE: {{ .connection_pool_size | quote }}
@@ -174,6 +189,9 @@ data:
                     {{- if .port}}
   STAP_CONFIG_SQLGUARD_5_SQLGUARD_PORT: {{ .port | quote }}
                     {{- end }}
+                    {{- if .tls_port}}
+  STAP_CONFIG_SQLGUARD_5_SQLGUARD_TLS_PORT: {{ .tls_port | quote }}
+                    {{- end }}
                     {{- if .connection_pool_size}}
   STAP_CONFIG_SQLGUARD_5_CONNECTION_POOL_SIZE: {{ .connection_pool_size | quote }}
                     {{- end }}
@@ -189,6 +207,9 @@ data:
   STAP_CONFIG_SQLGUARD_6_PRIMARY: "7"
                       {{- if .port}}
   STAP_CONFIG_SQLGUARD_6_SQLGUARD_PORT: {{ .port | quote }}
+                      {{- end }}
+                      {{- if .tls_port}}
+  STAP_CONFIG_SQLGUARD_6_SQLGUARD_TLS_PORT: {{ .tls_port | quote }}
                       {{- end }}
                       {{- if .connection_pool_size}}
   STAP_CONFIG_SQLGUARD_6_CONNECTION_POOL_SIZE: {{ .connection_pool_size | quote }}
@@ -206,6 +227,9 @@ data:
                         {{- if .port}}
   STAP_CONFIG_SQLGUARD_7_SQLGUARD_PORT: {{ .port | quote }}
                         {{- end }}
+                        {{- if .tls_port}}
+  STAP_CONFIG_SQLGUARD_7_SQLGUARD_TLS_PORT: {{ .tls_port | quote }}
+                        {{- end }}
                         {{- if .connection_pool_size}}
   STAP_CONFIG_SQLGUARD_7_CONNECTION_POOL_SIZE: {{ .connection_pool_size | quote }}
                         {{- end }}
@@ -222,6 +246,9 @@ data:
                           {{- if .port}}
   STAP_CONFIG_SQLGUARD_8_SQLGUARD_PORT: {{ .port | quote }}
                           {{- end }}
+                          {{- if .tls_port}}
+  STAP_CONFIG_SQLGUARD_8_SQLGUARD_TLS_PORT: {{ .tls_port | quote }}
+                          {{- end }}
                           {{- if .connection_pool_size}}
   STAP_CONFIG_SQLGUARD_8_CONNECTION_POOL_SIZE: {{ .connection_pool_size | quote }}
                           {{- end }}
@@ -237,6 +264,9 @@ data:
   STAP_CONFIG_SQLGUARD_9_PRIMARY: "10"
                             {{- if .port}}
   STAP_CONFIG_SQLGUARD_9_SQLGUARD_PORT: {{ .port | quote }}
+                            {{- end }}
+                            {{- if .tls_port}}
+  STAP_CONFIG_SQLGUARD_9_SQLGUARD_TLS_PORT: {{ .tls_port | quote }}
                             {{- end }}
                             {{- if .connection_pool_size}}
   STAP_CONFIG_SQLGUARD_9_CONNECTION_POOL_SIZE: {{ .connection_pool_size | quote }}
