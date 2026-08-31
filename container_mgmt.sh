@@ -19,7 +19,7 @@
 TRANSLATE_SPECIAL_CHARS=1
 ECHO_DASH_N_WORKS=0
 PRINTF_IS_PROVIDED=0
-SUPPORTED_DB_LIST="\"oracle\", \"mssql\", \"sybase\", \"mongodb\", \"db2\", \"mysql\", \"memsql\", \"mariadb\", \"pgsql\", \"greenplumdb\", \"verticadb\", \"redis\", \"dynamodb\", \"el_search\", \"amazons3\", \"cockroach\", \"netezza\", \"hana\", \"snowflake\", \"trd\", \"milvus\", \"couch\", \"yugabyte\", \"oceanbase\", \"open_search\", \"tigergraph\", \"marklogic\", \"milvus\", \"mcp\""
+
 A="1\n2"
 
 if [ `echo "$A" | wc -l | awk '{ gsub(/[ \t\n]+/, "", $0); printf $0; }'` -eq 2 ]; then
@@ -209,6 +209,16 @@ do_usage() {
 	println "\t[--tenant-id <tenant ID string>]        - specify tenant ID for this deployment"
 	println "\t                                          required, example \"10.0.0.2\""
 	println "\t[--participate-in-load-balancing <num>] - STAP load balancing parameter"
+	println "\t[--using-edge <0|1>]                    - Enable Edge mode (0: disabled, 1: enabled)"
+	println "\t                                          optional, default is 0"
+	println "\t[--external-load-balancer <0|1>]        - External load balancer flag (0: disabled, 1: enabled)"
+	println "\t                                          optional, default is 0"
+	println "\t[--max-collector-connection <num>]      - Maximum collector connections"
+	println "\t                                          optional, default is 10"
+	println "\t[--sqlguard-tls-port <port>]            - TLS port for Guardium collector"
+	println "\t                                          optional, default is 16018"
+	println "\t[--use-sni <0|1>]                       - Use SNI for TLS connections (0: disabled, 1: enabled)"
+	println "\t                                          optional, default is 0"
 	println "\t                                          optional, default is 0 -  0: failover/no lb, 1: split, 2: redundancy, 3: not allowed, 4: threaded"
 	println "\t[--sqlguard-cert-cn <cn>]               - CN to match when verifying collector certificates"
 	println "\t                                          requires a derived container image with a CA populated at ${GUARDIUM_CA_PATH}"
@@ -218,7 +228,7 @@ do_usage() {
 	println "\t                                          optional, can be set from collector after creation.  example \"1526\""
 	println "\t[--db-type <string>]                    - specify DB type for traffic that is being proxied"
 	println "\t                                          optional, can be set from collector after creation."
-	println "\t                                          must be one of $SUPPORTED_DB_LIST"
+	println "\t                                          must be one of \"oracle\", \"mssql\", \"sybase\", \"mongodb\", \"db2\", \"mysql\", \"memsql\", \"mariadb\", \"pgsql\", \"greenplumdb\", \"verticadb\", \"redis\", \"dynamodb\", \"el_search\", \"amazons3\", \"cockroach\", \"netezza\", \"hana\", \"snowflake\", \"trd\", \"redshift\", \"milvus\", \"couch\", \"neo4j\", \"hypersql\", \"tigergraph\", \"oceanbase\""
 	println "\t[--proxy-num-workers <#>]               - number of worker threads for the guardium external s-tap to use"
 	println "\t                                          optional, can be set from collector after creation.  example \"5\""
 	println "\t[--proxy-protocol <#>]                  - proxy protocol is enabled for the DB traffic (0: no, 1: protocol version 1, 2: protocol version 2)"
@@ -279,7 +289,6 @@ STAP_CONFIG_PROXY_DB_HOST_FMT="-e STAP_CONFIG_PROXY_DB_HOST="
 STAP_CONFIG_DB_0_REAL_DB_PORT_FMT="-e STAP_CONFIG_DB_0_REAL_DB_PORT="
 STAP_CONFIG_PROXY_LISTEN_PORT_FMT="-e STAP_CONFIG_PROXY_LISTEN_PORT="
 STAP_CONFIG_PROXY_DEBUG_FMT="-e STAP_CONFIG_PROXY_DEBUG="
-STAP_CONFIG_PROXY_DETECT_SSL_WITHIN_X_PACKETS_FMT="-e STAP_CONFIG_PROXY_DETECT_SSL_WITHIN_X_PACKETS="
 
 STAP_CONFIG_PROXY_SECRET_FMT="-e STAP_CONFIG_PROXY_SECRET="
 
@@ -300,6 +309,11 @@ STAP_CONFIG_SQLGUARD_CERT_CN_FMT="-e STAP_CONFIG_SQLGUARD_CERT_CN="
 STAP_CONFIG_PROXY_NUM_WORKERS_FMT="-e STAP_CONFIG_PROXY_NUM_WORKERS="
 STAP_CONFIG_PROXY_PROXY_PROTOCOL_FMT="-e STAP_CONFIG_PROXY_PROXY_PROTOCOL="
 STAP_CONFIG_PROXY_DISCONNECT_ON_INVALID_CERTIFICATE_FMT="-e STAP_CONFIG_PROXY_DISCONNECT_ON_INVALID_CERTIFICATE="
+STAP_CONFIG_USING_EDGE_FMT="-e STAP_CONFIG_USING_EDGE="
+STAP_CONFIG_EXTERNAL_LOAD_BALANCER_FMT="-e STAP_CONFIG_EXTERNAL_LOAD_BALANCER="
+STAP_CONFIG_MAX_COLLECTOR_CONNECTION_FMT="-e STAP_CONFIG_MAX_COLLECTOR_CONNECTION="
+STAP_CONFIG_SQLGUARD_0_SQLGUARD_TLS_PORT_FMT="-e STAP_CONFIG_SQLGUARD_0_SQLGUARD_TLS_PORT="
+STAP_CONFIG_SQLGUARD_0_USE_SNI_FMT="-e STAP_CONFIG_SQLGUARD_0_USE_SNI="
 STAP_CONFIG_PROXY_NOTIFY_ON_INVALID_CERTIFICATE_FMT="-e STAP_CONFIG_PROXY_NOTIFY_ON_INVALID_CERTIFICATE="
 
 # These can be filled in by parameters
@@ -354,8 +368,12 @@ GUARDIUM_CA_PATH="/etc/guardium/guardium_ca.crt"
 PARTICIPATE_IN_LOAD_BALANCING=0
 NUM_WORKERS=""
 PROXY_PROTOCOL="0"
-DETECT_SSL_WITHIN_X_PACKETS="-1"
 INVALID_CERT_DISCO="N"
+USING_EDGE=0
+EXTERNAL_LOAD_BALANCER=0
+MAX_COLLECTOR_CONNECTION=10
+SQLGUARD_TLS_PORT=16018
+USE_SNI=0
 INVALID_CERT_NOTIFY="N"
 
 KILL_AFTER=0
@@ -454,10 +472,6 @@ parse_cmd_line_args()
 					DB_PORT=$2
 					shift
 					;;
-				--proxy-detect-ssl-within-x-packets)
-					DETECT_SSL_WITHIN_X_PACKETS=$2
-					shift
-					;;
 				--proxy-secret)
 					TOKEN=$2
 					shift
@@ -524,6 +538,26 @@ parse_cmd_line_args()
 					;;
 				--sqlguard-cert-cn)
 					SQLGUARD_CERT_CN=$2
+					shift
+					;;
+				--using-edge)
+					USING_EDGE=$2
+					shift
+					;;
+				--external-load-balancer)
+					EXTERNAL_LOAD_BALANCER=$2
+					shift
+					;;
+				--max-collector-connection)
+					MAX_COLLECTOR_CONNECTION=$2
+					shift
+					;;
+				--sqlguard-tls-port)
+					SQLGUARD_TLS_PORT=$2
+					shift
+					;;
+				--use-sni)
+					USE_SNI=$2
 					shift
 					;;
 				--svc-image)
@@ -706,7 +740,7 @@ validate_integer() {
 			return 1
 		fi
 	fi
-	if print $RESP | sed 's/^-//' | grep "[^0-9]" > /dev/null 2>&1; then
+	if print $RESP | grep "[^0-9]" > /dev/null 2>&1; then
 		echo "$ERR_MSG \"$RESP\""
 		return 1
 	else
@@ -927,16 +961,57 @@ mark_error() {
 }
 
 print_valid_db_types() {
-	echo "Valid DB types are $SUPPORTED_DB_LIST"
+	echo "Valid DB types are \"oracle\", \"mssql\", \"sybase\", \"mongodb\", \"db2\", \"mysql\", \"memsql\", \"mariadb\", \"pgsql\", \"greenplumdb\", \"verticadb\", \"redis\", \"dynamodb\", \"el_search\", \"amazons3\", \"cockroach\", \"netezza\", \"hana\", \"snowflake\", \"trd\", \"redshift\", \"milvus\", \"couch\", \"neo4j\", \"hypersql\", \"tigergraph\", \"oceanbase\""
 }
 
 valid_db_type() {
 	VALID_TYPE=1
-	for i in `echo $SUPPORTED_DB_LIST | tr '",' '  '`; do
-		if [ "$1" = "$i" ]; then
-			VALID_TYPE=0
-		fi
-	done
+	if [ "$1" = "oracle" ] \
+		|| [ "$1" = "mssql" ] \
+		|| [ "$1" = "sybase" ] \
+		|| [ "$1" = "mongodb" ] \
+		|| [ "$1" = "db2" ] \
+		|| [ "$1" = "mysql" ] \
+		|| [ "$1" = "memsql" ] \
+		|| [ "$1" = "mariadb" ] \
+		|| [ "$1" = "pgsql" ] \
+		|| [ "$1" = "greenplumdb" ] \
+		|| [ "$1" = "verticadb" ] \
+		|| [ "$1" = "redis" ] \
+		|| [ "$1" = "dynamodb" ] \
+		|| [ "$1" = "el_search" ] \
+		|| [ "$1" = "bigquery" ] \
+		|| [ "$1" = "amazons3" ] \
+		|| [ "$1" = "cockroach" ] \
+		|| [ "$1" = "netezza" ] \
+		|| [ "$1" = "hana" ] \
+		|| [ "$1" = "snowflake" ] \
+		|| [ "$1" = "trd" ] \
+		|| [ "$1" = "redshift" ] \
+		|| [ "$1" = "milvus" ] \
+		|| [ "$1" = "couch" ] \
+		|| [ "$1" = "neo4j" ] \
+		|| [ "$1" = "oceanbase" ] \
+		|| [ "$1" = "tigergraph" ] \
+		|| [ "$1" = "hypersql" ] \
+	; then
+		VALID_TYPE=0
+	fi
+		# Currently unsupported marks
+#		|| [ "$1" = "infx" ] \
+#		|| [ "$1" = "teradata" ] \
+#		|| [ "$1" = "netezza" ] \
+#		|| [ "$1" = "hadoop" ] \
+#		|| [ "$1" = "cassandra" ] \
+#		|| [ "$1" = "asterdb" ] \
+#		|| [ "$1" = "hana" ] \
+#		|| [ "$1" = "hive" ] \
+#		|| [ "$1" = "accumolo" ] \
+#		|| [ "$1" = "impala" ] \
+#		|| [ "$1" = "hue" ] \
+#		|| [ "$1" = "webhdfs" ] \
+#		|| [ "$1" = "solr" ] \
+#		|| [ "$1" = "couchbase" ] \
 	return $VALID_TYPE
 }
 
@@ -1082,6 +1157,39 @@ if [ $NI -ne 0 ] && ( [ "$ACTION" = "C" ] || [ "$ACTION" = "P" ] ); then
 
 		if [ "$PARTICIPATE_IN_LOAD_BALANCING" != "0" ]; then
 			validate_character "Invalid value for --participate-in-load-balancing" "$PARTICIPATE_IN_LOAD_BALANCING" "0124"
+			mark_error $?
+		fi
+
+		if [ "$USING_EDGE" != "0" ] && [ "$USING_EDGE" != "1" ]; then
+			validate_character "Invalid value for --using-edge" "$USING_EDGE" "01"
+			mark_error $?
+		fi
+
+		if [ "$EXTERNAL_LOAD_BALANCER" != "0" ] && [ "$EXTERNAL_LOAD_BALANCER" != "1" ]; then
+			validate_character "Invalid value for --external-load-balancer" "$EXTERNAL_LOAD_BALANCER" "01"
+			mark_error $?
+		fi
+
+		if [ "$MAX_COLLECTOR_CONNECTION" != "" ]; then
+			validate_integer "Invalid value for --max-collector-connection" "$MAX_COLLECTOR_CONNECTION" 1
+			mark_error $?
+			if [ $MAX_COLLECTOR_CONNECTION -lt 1 ] || [ $MAX_COLLECTOR_CONNECTION -gt 10 ]; then
+				println "Max collector connection must be between 1 and 10"
+				mark_error 1
+			fi
+		fi
+
+		if [ "$SQLGUARD_TLS_PORT" != "" ]; then
+			validate_integer "Invalid value for --sqlguard-tls-port" "$SQLGUARD_TLS_PORT" 1
+			mark_error $?
+			if [ $SQLGUARD_TLS_PORT -lt 1 ] || [ $SQLGUARD_TLS_PORT -gt 65535 ]; then
+				println "TLS port must be between 1 and 65535"
+				mark_error 1
+			fi
+		fi
+
+		if [ "$USE_SNI" != "0" ] && [ "$USE_SNI" != "1" ]; then
+			validate_character "Invalid value for --use-sni" "$USE_SNI" "01"
 			mark_error $?
 		fi
 	else
@@ -1391,11 +1499,6 @@ if [ $NI -eq 0 ]; then
 				"012"
 			print_ni_param "--proxy-protocol" "$PROXY_PROTOCOL"
 			get_resp \
-				"DETECT_SSL_WITHIN_X_PACKETS" \
-				"Limit SSL detection to the first X packets: -1: unlimited (default), 0 no detection, >0 number of packets: " \
-				"integer"
-			print_ni_param "--proxy-detect-ssl-within-x-packets" "$DETECT_SSL_WITHIN_X_PACKETS"
-			get_resp \
 				"INVALID_CERT_DISCO" \
 				"Do you wish to disconnect the clients if the DB server certificate cannot be verified? (y/n) " \
 				"character" \
@@ -1490,6 +1593,48 @@ if [ $NI -eq 0 ]; then
 						"character" \
 						"0124"
 					print_ni_param "--participate-in-load-balancing" "$PARTICIPATE_IN_LOAD_BALANCING"
+					get_resp \
+						"USING_EDGE" \
+						"Enable Edge mode? (0: disabled, 1: enabled): " \
+						"character" \
+						"01"
+					print_ni_param "--using-edge" "$USING_EDGE"
+					get_resp \
+						"EXTERNAL_LOAD_BALANCER" \
+						"External load balancer? (0: disabled, 1: enabled): " \
+						"character" \
+						"01"
+					print_ni_param "--external-load-balancer" "$EXTERNAL_LOAD_BALANCER"
+					get_resp \
+						"MAX_COLLECTOR_CONNECTION" \
+						"Maximum collector connections (1-10): " \
+						"integer"
+					while [ $MAX_COLLECTOR_CONNECTION -lt 1 ] || [ $MAX_COLLECTOR_CONNECTION -gt 10 ]; do
+						println "Max collector connection must be between 1 and 10"
+						get_resp \
+							"MAX_COLLECTOR_CONNECTION" \
+							"Maximum collector connections (1-10): " \
+							"integer"
+					done
+					print_ni_param "--max-collector-connection" "$MAX_COLLECTOR_CONNECTION"
+					get_resp \
+						"SQLGUARD_TLS_PORT" \
+						"Guardium TLS port (default 16018): " \
+						"integer"
+					while [ $SQLGUARD_TLS_PORT -lt 1 ] || [ $SQLGUARD_TLS_PORT -gt 65535 ]; do
+						println "TLS port must be between 1 and 65535"
+						get_resp \
+							"SQLGUARD_TLS_PORT" \
+							"Guardium TLS port (default 16018): " \
+							"integer"
+					done
+					print_ni_param "--sqlguard-tls-port" "$SQLGUARD_TLS_PORT"
+					get_resp \
+						"USE_SNI" \
+						"Use SNI for TLS connections? (0: disabled, 1: enabled): " \
+						"character" \
+						"01"
+					print_ni_param "--use-sni" "$USE_SNI"
 					get_resp \
 						"SQLGUARD_CERT_CN" \
 						"Enter the CN to match when verifying the Guardium Collector's Certificate (blank to disable verification): "\
@@ -1762,7 +1907,6 @@ get_config_from_container() {
 		LISTEN_PORT=`echo "$INSTANCE_ENV" | grep STAP_CONFIG_PROXY_LISTEN_PORT | sed "s/.*=\(.*\)/\1/"`
 		DEBUG=`echo "$INSTANCE_ENV" | grep STAP_CONFIG_PROXY_DEBUG | sed "s/.*=\(.*\)/\1/"`
 		NUM_WORKERS=`echo "$INSTANCE_ENV" | grep STAP_CONFIG_PROXY_NUM_WORKERS | sed "s/.*=\(.*\)/\1/"`
-		DETECT_SSL_WITHIN_X_PACKETS=`echo "$INSTANCE_ENV" | grep STAP_CONFIG_PROXY_DETECT_SSL_WITHIN_X_PACKETS | sed "s/.*=\(.*\)/\1/"`
 
 		TOKEN=`echo "$INSTANCE_ENV" | grep STAP_CONFIG_PROXY_SECRET | sed "s/.*=\(.*\)/\1/"`
 
@@ -1789,6 +1933,19 @@ get_config_from_container() {
 		SQLGUARD_CERT_CN=`echo "$INSTANCE_ENV" | grep STAP_CONFIG_SQLGUARD_CERT_CN | sed "s/.*=\(.*\)/\1/"`
 		PARTICIPATE_IN_LOAD_BALANCING=`echo "$INSTANCE_ENV" | grep STAP_CONFIG_PARTICIPATE_IN_LOAD_BALANCING | sed "s/.*=\(.*\)/\1/"`
 
+		USING_EDGE=`echo "$INSTANCE_ENV" | grep STAP_CONFIG_USING_EDGE | sed "s/.*=\(.*\)/\1/"`
+		EXTERNAL_LOAD_BALANCER=`echo "$INSTANCE_ENV" | grep STAP_CONFIG_EXTERNAL_LOAD_BALANCER | sed "s/.*=\(.*\)/\1/"`
+		MAX_COLLECTOR_CONNECTION=`echo "$INSTANCE_ENV" | grep STAP_CONFIG_MAX_COLLECTOR_CONNECTION | sed "s/.*=\(.*\)/\1/"`
+		SQLGUARD_TLS_PORT=`echo "$INSTANCE_ENV" | grep STAP_CONFIG_SQLGUARD_0_SQLGUARD_TLS_PORT | sed "s/.*=\(.*\)/\1/"`
+		USE_SNI=`echo "$INSTANCE_ENV" | grep STAP_CONFIG_SQLGUARD_0_USE_SNI | sed "s/.*=\(.*\)/\1/"`
+
+		# Handle Edge mode configuration
+		if [ "$USING_EDGE" = "1" ]; then
+			# When using Edge, automatically set load balancing parameters
+			PARTICIPATE_IN_LOAD_BALANCING=1
+			EXTERNAL_LOAD_BALANCER=1
+		fi
+
 		STAP_CONFIG_TAP_TAP_IP="${STAP_CONFIG_TAP_TAP_IP_FMT}${TAP_IP}"
 		STAP_CONFIG_TAP_PRIVATE_TAP_IP="${STAP_CONFIG_TAP_PRIVATE_TAP_IP_FMT}${PRIVATE_TAP_IP}"
 		STAP_CONFIG_TAP_FORCE_SERVER_IP="${STAP_CONFIG_TAP_FORCE_SERVER_IP_FMT}${FORCE_SERVER_IP}"
@@ -1809,7 +1966,6 @@ get_config_from_container() {
 		STAP_CONFIG_PROXY_PROXY_PROTOCOL="${STAP_CONFIG_PROXY_PROXY_PROTOCOL_FMT}${PROXY_PROTOCOL}"
 		STAP_CONFIG_PROXY_DISCONNECT_ON_INVALID_CERTIFICATE="${STAP_CONFIG_PROXY_DISCONNECT_ON_INVALID_CERTIFICATE_FMT}${INVALID_CERT_DISCO}"
 		STAP_CONFIG_PROXY_NOTIFY_ON_INVALID_CERTIFICATE="${STAP_CONFIG_PROXY_NOTIFY_ON_INVALID_CERTIFICATE_FMT}${INVALID_CERT_NOTIFY}"
-		STAP_CONFIG_PROXY_DETECT_SSL_WITHIN_X_PACKETS="${STAP_CONFIG_PROXY_DETECT_SSL_WITHIN_X_PACKETS}${DETECT_SSL_WITHIN_X_PACKETS=}"
 
 		STAP_CONFIG_PROXY_SECRET="${STAP_CONFIG_PROXY_SECRET_FMT}${TOKEN}"
 
@@ -1864,6 +2020,11 @@ get_config_from_container() {
 			STAP_CONFIG_GUARDIUM_CA_PATH="${STAP_CONFIG_GUARDIUM_CA_PATH_FMT}${GUARDIUM_CA_PATH}"
 		fi
 		STAP_CONFIG_PARTICIPATE_IN_LOAD_BALANCING="${STAP_CONFIG_PARTICIPATE_IN_LOAD_BALANCING_FMT}${PARTICIPATE_IN_LOAD_BALANCING}"
+		STAP_CONFIG_USING_EDGE="${STAP_CONFIG_USING_EDGE_FMT}${USING_EDGE}"
+		STAP_CONFIG_EXTERNAL_LOAD_BALANCER="${STAP_CONFIG_EXTERNAL_LOAD_BALANCER_FMT}${EXTERNAL_LOAD_BALANCER}"
+		STAP_CONFIG_MAX_COLLECTOR_CONNECTION="${STAP_CONFIG_MAX_COLLECTOR_CONNECTION_FMT}${MAX_COLLECTOR_CONNECTION}"
+		STAP_CONFIG_SQLGUARD_0_SQLGUARD_TLS_PORT="${STAP_CONFIG_SQLGUARD_0_SQLGUARD_TLS_PORT_FMT}${SQLGUARD_TLS_PORT}"
+		STAP_CONFIG_SQLGUARD_0_USE_SNI="${STAP_CONFIG_SQLGUARD_0_USE_SNI_FMT}${USE_SNI}"
 		CONTAINER_CMD="$PRIVILEGED \
 			$REQUIRED_CAPABILITIES \
 			$EXTRA_CAPABILITIES \
@@ -1877,7 +2038,6 @@ get_config_from_container() {
 			$STAP_CONFIG_PROXY_PROXY_PROTOCOL \
 			$STAP_CONFIG_PROXY_DISCONNECT_ON_INVALID_CERTIFICATE \
 			$STAP_CONFIG_PROXY_NOTIFY_ON_INVALID_CERTIFICATE \
-			$STAP_CONFIG_PROXY_DETECT_SSL_WITHIN_X_PACKETS \
 			$STAP_CONFIG_DB_0_REAL_DB_PORT \
 			$STAP_CONFIG_PROXY_LISTEN_PORT \
 			$STAP_CONFIG_PROXY_DEBUG \
@@ -1890,6 +2050,11 @@ get_config_from_container() {
 			$STAP_CONFIG_PROXY_CSR_KEYLENGTH \
 			$STAP_CONFIG_DB_0_DB_TYPE \
 			$STAP_CONFIG_PARTICIPATE_IN_LOAD_BALANCING \
+			$STAP_CONFIG_USING_EDGE \
+			$STAP_CONFIG_EXTERNAL_LOAD_BALANCER \
+			$STAP_CONFIG_MAX_COLLECTOR_CONNECTION \
+			$STAP_CONFIG_SQLGUARD_0_SQLGUARD_TLS_PORT \
+			$STAP_CONFIG_SQLGUARD_0_USE_SNI \
 			$STAP_CONFIG_SQLGUARD_CERT_CN \
 			$STAP_CONFIG_GUARDIUM_CA_PATH \
 			$STAP_CONFIG_TAP_TENANT_ID"
@@ -1929,11 +2094,6 @@ set_config_vars() {
 	else
 		STAP_CONFIG_PROXY_NOTIFY_ON_INVALID_CERTIFICATE="${STAP_CONFIG_PROXY_NOTIFY_ON_INVALID_CERTIFICATE_FMT}0"
 	fi
-	if [ "$DETECT_SSL_WITHIN_X_PACKETS" != "" ]; then
-		STAP_CONFIG_PROXY_DETECT_SSL_WITHIN_X_PACKETS="${STAP_CONFIG_PROXY_DETECT_SSL_WITHIN_X_PACKETS_FMT}${DETECT_SSL_WITHIN_X_PACKETS}"
-	else
-		STAP_CONFIG_PROXY_DETECT_SSL_WITHIN_X_PACKETS="${STAP_CONFIG_PROXY_DETECT_SSL_WITHIN_X_PACKETS_FMT}-1"
-	fi
 
 	STAP_CONFIG_PROXY_SECRET="${STAP_CONFIG_PROXY_SECRET_FMT}${TOKEN}"
 
@@ -1961,7 +2121,20 @@ set_config_vars() {
 		STAP_CONFIG_GUARDIUM_CA_PATH="${STAP_CONFIG_GUARDIUM_CA_PATH_FMT}${GUARDIUM_CA_PATH}"
 		STAP_CONFIG_SQLGUARD_CERT_CN="${STAP_CONFIG_SQLGUARD_CERT_CN_FMT}${SQLGUARD_CERT_CN}"
 	fi
+
+	# Handle Edge mode configuration
+	if [ "$USING_EDGE" = "1" ]; then
+		# When using Edge, automatically set load balancing parameters
+		PARTICIPATE_IN_LOAD_BALANCING=1
+		EXTERNAL_LOAD_BALANCER=1
+	fi
+
 	STAP_CONFIG_PARTICIPATE_IN_LOAD_BALANCING="${STAP_CONFIG_PARTICIPATE_IN_LOAD_BALANCING_FMT}${PARTICIPATE_IN_LOAD_BALANCING}"
+	STAP_CONFIG_USING_EDGE="${STAP_CONFIG_USING_EDGE_FMT}${USING_EDGE}"
+	STAP_CONFIG_EXTERNAL_LOAD_BALANCER="${STAP_CONFIG_EXTERNAL_LOAD_BALANCER_FMT}${EXTERNAL_LOAD_BALANCER}"
+	STAP_CONFIG_MAX_COLLECTOR_CONNECTION="${STAP_CONFIG_MAX_COLLECTOR_CONNECTION_FMT}${MAX_COLLECTOR_CONNECTION}"
+	STAP_CONFIG_SQLGUARD_0_SQLGUARD_TLS_PORT="${STAP_CONFIG_SQLGUARD_0_SQLGUARD_TLS_PORT_FMT}${SQLGUARD_TLS_PORT}"
+	STAP_CONFIG_SQLGUARD_0_USE_SNI="${STAP_CONFIG_SQLGUARD_0_USE_SNI_FMT}${USE_SNI}"
 }
 
 target_has_enough_memory() {
@@ -2078,7 +2251,6 @@ if [ "$ACTION" = "C" ]; then
 			$STAP_CONFIG_PROXY_PROXY_PROTOCOL \
 			$STAP_CONFIG_PROXY_DISCONNECT_ON_INVALID_CERTIFICATE \
 			$STAP_CONFIG_PROXY_NOTIFY_ON_INVALID_CERTIFICATE \
-			$STAP_CONFIG_PROXY_DETECT_SSL_WITHIN_X_PACKETS \
 			$STAP_CONFIG_DB_0_REAL_DB_PORT \
 			$STAP_CONFIG_PROXY_LISTEN_PORT \
 			$STAP_CONFIG_PROXY_DEBUG \
@@ -2091,6 +2263,11 @@ if [ "$ACTION" = "C" ]; then
 			$STAP_CONFIG_PROXY_CSR_KEYLENGTH \
 			$STAP_CONFIG_DB_0_DB_TYPE \
 			$STAP_CONFIG_PARTICIPATE_IN_LOAD_BALANCING \
+			$STAP_CONFIG_USING_EDGE \
+			$STAP_CONFIG_EXTERNAL_LOAD_BALANCER \
+			$STAP_CONFIG_MAX_COLLECTOR_CONNECTION \
+			$STAP_CONFIG_SQLGUARD_0_SQLGUARD_TLS_PORT \
+			$STAP_CONFIG_SQLGUARD_0_USE_SNI \
 			$STAP_CONFIG_GUARDIUM_CA_PATH \
 			$STAP_CONFIG_SQLGUARD_CERT_CN \
 			$STAP_CONFIG_TAP_TENANT_ID"
@@ -2225,7 +2402,6 @@ elif [ "$ACTION" = "P" ]; then
 			$STAP_CONFIG_PROXY_PROXY_PROTOCOL \
 			$STAP_CONFIG_PROXY_DISCONNECT_ON_INVALID_CERTIFICATE \
 			$STAP_CONFIG_PROXY_NOTIFY_ON_INVALID_CERTIFICATE \
-			$STAP_CONFIG_PROXY_DETECT_SSL_WITHIN_X_PACKETS \
 			$STAP_CONFIG_DB_0_REAL_DB_PORT \
 			$STAP_CONFIG_PROXY_LISTEN_PORT \
 			$STAP_CONFIG_PROXY_DEBUG \
@@ -2239,6 +2415,11 @@ elif [ "$ACTION" = "P" ]; then
 			$STAP_CONFIG_DB_0_DB_TYPE \
 			$SQLGUARD_PARAMS \
 			$STAP_CONFIG_PARTICIPATE_IN_LOAD_BALANCING \
+			$STAP_CONFIG_USING_EDGE \
+			$STAP_CONFIG_EXTERNAL_LOAD_BALANCER \
+			$STAP_CONFIG_MAX_COLLECTOR_CONNECTION \
+			$STAP_CONFIG_SQLGUARD_0_SQLGUARD_TLS_PORT \
+			$STAP_CONFIG_SQLGUARD_0_USE_SNI \
 			$STAP_CONFIG_GUARDIUM_CA_PATH \
 			$STAP_CONFIG_SQLGUARD_CERT_CN \
 			$STAP_CONFIG_TAP_TENANT_ID"
