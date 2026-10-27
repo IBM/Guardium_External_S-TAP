@@ -20,9 +20,11 @@ estap:
   requests:
     cpu: 100m
     memory: 512Mi
+    ephemeral-storage: 100Mi
   limits:
     cpu: 500m
     memory: 2096Mi
+    ephemeral-storage: 500Mi
   uid: 1000
   fsGroup: 1000
   #supplementalGroups: 0
