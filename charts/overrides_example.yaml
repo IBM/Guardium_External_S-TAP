@@ -144,9 +144,11 @@ estap:
   #requests:
     #cpu: 100m
     #memory: 512Mi
+    #ephemeral-storage: 100Mi
   #limits:
     #cpu: 500m
     #memory: 2096Mi
+    #ephemeral-storage: 500Mi
 
   # UID for container user
   # Optional, default is 1000.  If changed, 0 will be added automatically

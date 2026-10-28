@@ -88,9 +88,11 @@ spec:
           requests:
             cpu: 100m
             memory: 256Mi
+            ephemeral-storage: 50Mi
           limits:
             cpu: 100m
             memory: 512Mi
+            ephemeral-storage: 100Mi
     {{- end }}
   {{- end }}
 {{- end }}
@@ -189,6 +191,8 @@ spec:
           requests:
             cpu: {{ include "estap-deploy.estap.requests.cpu" . }}
             memory: {{ include "estap-deploy.estap.requests.memory" . }}
+            ephemeral-storage: {{ include "estap-deploy.estap.requests.ephemeral-storage" . }}
           limits:
             cpu: {{ include "estap-deploy.estap.limits.cpu" . }}
             memory: {{ include "estap-deploy.estap.limits.memory" . }}
+            ephemeral-storage: {{ include "estap-deploy.estap.limits.ephemeral-storage" . }}

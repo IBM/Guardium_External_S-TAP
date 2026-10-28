@@ -147,12 +147,20 @@ seccompProfile:
 {{- if .Values.estap.requests }}{{- .Values.estap.requests.memory | default "512Mi" }}{{- else }}"512Mi"{{- end }}
 {{- end }}
 
+{{- define "estap-deploy.estap.requests.ephemeral-storage" }}
+{{- if .Values.estap.requests }}{{- index .Values.estap.requests "ephemeral-storage" | default "100Mi" }}{{- else }}"100Mi"{{- end }}
+{{- end }}
+
 {{- define "estap-deploy.estap.limits.cpu" }}
 {{- if .Values.estap.limits }}{{ .Values.estap.limits.cpu | default "500m" }}{{- else }}"500m"{{- end }}
 {{- end }}
 
 {{- define "estap-deploy.estap.limits.memory" }}
 {{- if .Values.estap.limits }}{{ .Values.estap.limits.memory | default "2096Mi" }}{{- else }}"2096Mi"{{- end }}
+{{- end }}
+
+{{- define "estap-deploy.estap.limits.ephemeral-storage" }}
+{{- if .Values.estap.limits }}{{ index .Values.estap.limits "ephemeral-storage" | default "500Mi" }}{{- else }}"500Mi"{{- end }}
 {{- end }}
 
 {{- define "estap-deploy.global.secretWriterServiceAccountName" }}
